@@ -31,3 +31,18 @@ viven en esta carpeta todavía.
 ## Tests
 
     python -m pytest -v
+
+## Notas para cuando esto corra en un contenedor
+
+- `date.today()` en el backend resuelve contra la zona horaria local del
+  proceso. Corriendo nativo, es la zona horaria que tenga configurada la
+  máquina; en un contenedor va a ser UTC salvo que se fije `TZ`
+  explícitamente, lo cual puede desplazar el día calendario en el que
+  cae un check-in hecho tarde a la noche. Se recomienda setear una variable de
+  entorno `TZ` (por ejemplo `TZ=America/Argentina/Buenos_Aires`) en el
+  eventual contenedor/compose.
+- El arranque del backend (`lifespan` en `main.py`) crea las tablas de la
+  base apenas levanta y no reintenta — si Postgres todavía no acepta
+  conexiones, el backend crashea al arrancar. En un futuro compose esto
+  implica que el `depends_on` sobre el servicio de la base necesita
+  `condition: service_healthy`, no un `depends_on` a secas.

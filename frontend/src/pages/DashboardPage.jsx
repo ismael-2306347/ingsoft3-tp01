@@ -9,6 +9,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showForm, setShowForm] = useState(false);
+  const [editingHabit, setEditingHabit] = useState(null);
 
   useEffect(() => {
     loadHabits();
@@ -28,24 +29,55 @@ export default function DashboardPage() {
   }
 
   async function handleCreate(values) {
-    await habitsApi.createHabit(values);
-    setShowForm(false);
-    await loadHabits();
+    setError(null);
+    try {
+      await habitsApi.createHabit(values);
+      setShowForm(false);
+      await loadHabits();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function handleUpdate(id, values) {
+    setError(null);
+    try {
+      await habitsApi.updateHabit(id, values);
+      setEditingHabit(null);
+      await loadHabits();
+    } catch (err) {
+      setError(err.message);
+    }
   }
 
   async function handleCheckin(id) {
-    await habitsApi.checkin(id);
-    await loadHabits();
+    setError(null);
+    try {
+      await habitsApi.checkin(id);
+      await loadHabits();
+    } catch (err) {
+      setError(err.message);
+    }
   }
 
   async function handleUncheckin(id) {
-    await habitsApi.deleteCheckin(id);
-    await loadHabits();
+    setError(null);
+    try {
+      await habitsApi.deleteCheckin(id);
+      await loadHabits();
+    } catch (err) {
+      setError(err.message);
+    }
   }
 
   async function handleDelete(id) {
-    await habitsApi.deleteHabit(id);
-    await loadHabits();
+    setError(null);
+    try {
+      await habitsApi.deleteHabit(id);
+      await loadHabits();
+    } catch (err) {
+      setError(err.message);
+    }
   }
 
   return (
@@ -68,13 +100,25 @@ export default function DashboardPage() {
             onCheckin={handleCheckin}
             onUncheckin={handleUncheckin}
             onDelete={handleDelete}
+            onEdit={setEditingHabit}
           />
         ))}
         {!loading && habits.length === 0 && <p>Todavía no creaste ningún hábito.</p>}
       </div>
 
-      {showForm && (
-        <HabitFormModal onSubmit={handleCreate} onClose={() => setShowForm(false)} />
+      {(showForm || editingHabit) && (
+        <HabitFormModal
+          habit={editingHabit ?? undefined}
+          onSubmit={
+            editingHabit
+              ? (values) => handleUpdate(editingHabit.id, values)
+              : handleCreate
+          }
+          onClose={() => {
+            setShowForm(false);
+            setEditingHabit(null);
+          }}
+        />
       )}
     </div>
   );

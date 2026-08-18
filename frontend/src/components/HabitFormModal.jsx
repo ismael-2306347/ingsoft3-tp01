@@ -1,8 +1,8 @@
 import { useState } from "react";
 
-export default function HabitFormModal({ onSubmit, onClose }) {
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
+export default function HabitFormModal({ habit, onSubmit, onClose }) {
+  const [name, setName] = useState(habit?.name ?? "");
+  const [description, setDescription] = useState(habit?.description ?? "");
 
   function handleSubmit(event) {
     event.preventDefault();
@@ -12,7 +12,7 @@ export default function HabitFormModal({ onSubmit, onClose }) {
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={(event) => event.stopPropagation()}>
-        <h2>Nuevo hábito</h2>
+        <h2>{habit ? "Editar hábito" : "Nuevo hábito"}</h2>
         <form onSubmit={handleSubmit}>
           <label>
             Nombre

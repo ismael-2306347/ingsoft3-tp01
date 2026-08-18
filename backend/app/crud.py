@@ -64,7 +64,12 @@ def delete_checkin(db: Session, habit_id: int, on: date) -> bool:
 
 
 def get_log_dates(db: Session, habit_id: int) -> list[date]:
-    rows = db.query(models.HabitLog.date).filter(models.HabitLog.habit_id == habit_id).all()
+    rows = (
+        db.query(models.HabitLog.date)
+        .filter(models.HabitLog.habit_id == habit_id)
+        .order_by(models.HabitLog.date.desc())
+        .all()
+    )
     return [row[0] for row in rows]
 
 

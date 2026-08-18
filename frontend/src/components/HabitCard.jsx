@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 
 import StreakBadge from "./StreakBadge";
 
-export default function HabitCard({ habit, onCheckin, onUncheckin, onDelete }) {
+export default function HabitCard({ habit, onCheckin, onUncheckin, onDelete, onEdit }) {
   return (
     <div className="habit-card">
       <div>
@@ -22,6 +22,9 @@ export default function HabitCard({ habit, onCheckin, onUncheckin, onDelete }) {
           }
         >
           {habit.checked_in_today ? "Deshacer hoy" : "Marcar hoy"}
+        </button>
+        <button className="btn btn-secondary" onClick={() => onEdit(habit)}>
+          Editar
         </button>
         <button className="btn btn-danger" onClick={() => onDelete(habit.id)}>
           Borrar
