@@ -1,0 +1,11 @@
+venv/
+#entorno virtual de python, no hace falta subirlo al repositorio ni al contenedor, se reconstruye en el contenedor.
+**/__pycache__/
+#archivos de cache de python, aparecen en cualquier subcarpeta con módulos, no solo en la raíz.
+.pytest_cache/
+#archivos de cache de pytest, no hace falta subirlos al repositorio ni al contenedor, se reconstruyen en el contenedor.
+tests/
+#archivos de tests, no hace falta que viajen a la imagen final.
+.git/
+#defensivo: por si el Dockerfile pasa a usar COPY . . en algún momento.
+
