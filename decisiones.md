@@ -20,6 +20,10 @@ Si, fue un desarrollo con IA supervisado, atraves de una metodologia multiagenti
 
 ##Tamaño: CRUD basico + 2 pantallas.
 
+##declaracion de IA
+Se utilizo como guia de ayuda para el armado del dockerfile, .dockerignore y dockercompose, me sirvio para ir entendiendo el porque de cada linea de los archivos y como arma el contenedor docker.
+
+
 #Tercer TP
 
 ##Por que esta mal escrita la historia "Como desarrollador quiero crear la tabla usuarios"
@@ -30,3 +34,9 @@ Como desarrollador quiero guardar los datos de los usuarios para acceder a ellos
 
 ##Por que elegi 2 semanas en el plazo del sprint
 Simplemente porque en dos semanas es la entrega de los tps y quiero tenerlo listo antes de eso.
+
+##limite de trabajo en progreso: 2
+Porque asi evitamos empezar muchas cosas al mismo tiempo y no terminar ninguna, siempre es mejor tener una cosa finalizada que tres a medio hacer.
+
+##Declaracion de uso de IA
+No utilice IA para este practico, solo segui el video y las indicaciones del profesor.
