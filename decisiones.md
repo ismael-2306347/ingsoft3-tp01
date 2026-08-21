@@ -27,3 +27,6 @@ Esta mal escrita porque esta contando la solucion(la tabla) y no el problema a r
 
 ##Como reescribirias la historia?
 Como desarrollador quiero guardar los datos de los usuarios para acceder a ellos de forma ordenada.
+
+##Por que elegi 2 semanas en el plazo del sprint
+Simplemente porque en dos semanas es la entrega de los tps y quiero tenerlo listo antes de eso.
