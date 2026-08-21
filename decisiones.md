@@ -19,3 +19,11 @@ Si, tiene 31 test de prueba.
 Si, fue un desarrollo con IA supervisado, atraves de una metodologia multiagentica.
 
 ##Tamaño: CRUD basico + 2 pantallas.
+
+#Tercer TP
+
+##Por que esta mal escrita la historia "Como desarrollador quiero crear la tabla usuarios"
+Esta mal escrita porque esta contando la solucion(la tabla) y no el problema a resolver, sumado a eso en la descripcion que agrega el profe "....para guardar los datos" esto te dice el beneficio de la solucion y no el para que necesitas solucionar ese problema.
+
+##Como reescribirias la historia?
+Como desarrollador quiero guardar los datos de los usuarios para acceder a ellos de forma ordenada.
