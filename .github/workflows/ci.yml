@@ -1,0 +1,7 @@
+name: CI
+on: [pull_request]
+jobs: 
+  build:
+    runs_on: ubuntu_lastest
+    steps:
+      -uses: actions/checkout@v4
