@@ -24,7 +24,7 @@ jobs:
       - name: Construir la imagen del backend
         uses: docker/build-push-action@v7
         with:
-          context: ./backend
+          context: ./habit-tracker-app/backend
           push: false
           tags: backend:ci
           cache-from: type=gha,scope=backend
@@ -47,7 +47,7 @@ jobs:
       - name: Construir la imagen del frontend
         uses: docker/build-push-action@v7
         with:
-          context: ./frontend
+          context: ./habit-tracker-app/frontend
           push: false
           tags: frontend:ci
           cache-from: type=gha,scope=frontend
