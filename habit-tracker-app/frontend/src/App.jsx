@@ -1,5 +1,4 @@
 import { BrowserRouter, Route, Routes } from "react-router-dom";
-import missingModule from "./pages/NoExiste";
 
 import DashboardPage from "./pages/DashboardPage";
 import HabitDetailPage from "./pages/HabitDetailPage";
