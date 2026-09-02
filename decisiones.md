@@ -7,9 +7,9 @@ porque ambos PR estaban intentando escribir la misma linea.
 ## Declaracion de uso de IA
 No utilice IA para resolver este TP, solo segui los pasos indicados por el profe
 
-#Segundo Tp
+# Segundo Tp
 
-##¿Buildea y corre localmente hoy, sin magia? 
+## ¿Buildea y corre localmente hoy, sin magia? 
 Si, corre localmente, solo la base de datos corre en docker.
 
 ## ¿Tiene (o podés escribirle) tests? 
