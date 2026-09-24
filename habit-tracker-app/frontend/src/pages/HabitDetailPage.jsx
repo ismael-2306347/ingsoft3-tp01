@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-
+import { streakMessage } from "../lib/habits";
 import * as habitsApi from "../api/habits";
 
 export default function HabitDetailPage() {
@@ -36,6 +36,7 @@ export default function HabitDetailPage() {
         Racha actual: <strong>{habit.current_streak} días</strong> — Mejor racha:{" "}
         <strong>{habit.best_streak} días</strong>
       </p>
+      <p className="streak-message">{streakMessage(habit)}</p>
       <h2>Historial</h2>
       <ul className="log-list">
         {logs.map((log) => (
