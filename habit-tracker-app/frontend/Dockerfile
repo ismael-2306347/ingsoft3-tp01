@@ -9,7 +9,11 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
-#ETAPA 2: runtime (imagen mínima, sin herramientas de build)
+#ETAPA 2: tests (parte del build: ya tiene Node y las dependencias de desarrollo)
+FROM build AS test
+ENTRYPOINT ["npm", "run", "test:ci"]
+
+#ETAPA 3: runtime (imagen mínima, sin herramientas de build). Tiene que quedar ÚLTIMA.
 FROM nginx:alpine
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/dist /usr/share/nginx/html

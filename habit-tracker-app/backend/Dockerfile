@@ -14,7 +14,21 @@ ENV PATH="/opt/venv/bin:$PATH"
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# ---- Etapa 2: runtime (imagen mínima, sin herramientas de build) ----
+# ---- Etapa 2: tests (parte del build: hereda el venv con las dependencias) ----
+FROM build AS test
+# Las herramientas de test van SOLO en esta etapa: la imagen final no las lleva.
+COPY requirements-dev.txt .
+RUN pip install --no-cache-dir -r requirements-dev.txt
+COPY .coveragerc .
+COPY app ./app
+COPY tests ./tests
+# No va WORKDIR: se hereda /app de la etapa build.
+# El umbral (fail_under) y qué se mide (omit) están en .coveragerc: una sola fuente.
+ENTRYPOINT ["pytest", "--cov", "--cov-report=term-missing", \
+            "--cov-report=xml:/out/coverage.xml", "--cov-report=html:/out/htmlcov", \
+            "--junitxml=/out/tests.xml"]
+
+# ---- Etapa 3: runtime (imagen mínima, sin herramientas de build) ----
 FROM python:3.11-slim AS final
 WORKDIR /app
 

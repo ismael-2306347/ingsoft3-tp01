@@ -15,3 +15,10 @@ node_modules/
 
 # Claude Code local state (worktrees, session data)
 .claude/
+# Reportes de tests / coverage
+coverage/
+htmlcov/
+.coverage
+dist/
+backend-coverage/
+frontend-coverage/
