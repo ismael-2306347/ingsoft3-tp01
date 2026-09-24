@@ -1,13 +1,20 @@
 import { useState } from "react";
+import { validateHabit } from "../lib/habits";
 
 export default function HabitFormModal({ habit, onSubmit, onClose }) {
   const [name, setName] = useState(habit?.name ?? "");
   const [description, setDescription] = useState(habit?.description ?? "");
-
+  const [error, setError] = useState(null);
   function handleSubmit(event) {
-    event.preventDefault();
-    onSubmit({ name, description: description || null });
+  event.preventDefault();
+  const result = validateHabit({ name, description });
+  if (!result.valid) {
+    setError(result.error);
+    return;
   }
+  setError(null);
+  onSubmit(result.values);
+}
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -31,6 +38,7 @@ export default function HabitFormModal({ habit, onSubmit, onClose }) {
               maxLength={500}
             />
           </label>
+          {error && <p className="error">{error}</p>}
           <div className="modal__actions">
             <button type="button" className="btn btn-secondary" onClick={onClose}>
               Cancelar
