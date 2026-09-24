@@ -1,0 +1,11 @@
+[run]
+branch = True
+source = app
+omit =
+    app/main.py
+    app/database.py
+    app/models.py
+
+[report]
+show_missing = True
+fail_under = 90

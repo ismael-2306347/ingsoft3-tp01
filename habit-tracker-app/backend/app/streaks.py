@@ -21,7 +21,7 @@ def current_streak(log_dates: Iterable[date], today: date) -> int:
         if d == expected:
             streak += 1
             expected = expected - timedelta(days=1)
-        elif d < expected:
+        else:
             break
     return streak
 

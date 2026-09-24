@@ -11,4 +11,13 @@ export default defineConfig({
       },
     },
   },
+    test: {
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "html", "lcov", "json-summary"],
+      include: ["src/lib/**", "src/api/**"],
+      exclude: ["**/*.test.js"],
+      thresholds: { lines: 90, branches: 90 },
+    },
+  },
 });
