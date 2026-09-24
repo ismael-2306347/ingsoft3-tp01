@@ -14,11 +14,31 @@ def test_habit_create_allows_missing_description():
     assert habit.description is None
 
 
-def test_habit_create_rejects_empty_name():
+@pytest.mark.parametrize(
+    "nombre",
+    [
+        "",           # vacío
+        "   ",        # sólo espacios
+        "\t",         # un tabulador
+        "a" * 101,    # uno más que el máximo
+    ],
+)
+def test_habit_create_rejects_invalid_name(nombre):
     with pytest.raises(ValidationError):
-        HabitCreate(name="")
+        HabitCreate(name=nombre)
 
 
-def test_habit_create_rejects_name_over_100_chars():
-    with pytest.raises(ValidationError):
-        HabitCreate(name="a" * 101)
+def test_habit_create_accepts_name_of_exactly_100_chars():
+    habit = HabitCreate(name="a" * 100)
+    assert len(habit.name) == 100
+
+
+def test_habit_create_trims_surrounding_spaces():
+    habit = HabitCreate(name="  Leer  ")
+    assert habit.name == "Leer"
+
+
+def test_habit_create_rejects_description_over_500_chars():
+    with pytest.raises(ValidationError) as error:
+        HabitCreate(name="Leer", description="a" * 501)
+    assert "500" in str(error.value)
