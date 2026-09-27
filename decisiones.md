@@ -202,6 +202,9 @@ Puedo explicar qué verifica cada assert y qué casos no están cubiertos: los `
 - Paquete frontend: https://github.com/ismael-2306347/ingsoft3-tp01/pkgs/container/ingsoft3-tp01-frontend
 - Corrida de un PR con "Entrar al registry" salteado: https://github.com/ismael-2306347/ingsoft3-tp01/actions/runs/36323844538/job/108632699527
 - Corrida de `main` con el build+publish como último paso: https://github.com/ismael-2306347/ingsoft3-tp01/actions/runs/36323945709
+- Release del TP: https://github.com/ismael-2306347/ingsoft3-tp01/releases/tag/v6.0.0
+- Rechazo documentado de `deploy-prod`: https://github.com/ismael-2306347/ingsoft3-tp01/actions/runs/36328813191
+- Aprobación + deploy real a PROD: https://github.com/ismael-2306347/ingsoft3-tp01/actions/runs/36329849098
 - URL de QA: https://rachas-front-qa.onrender.com (api: https://rachas-api-qa.onrender.com)
 - URL de PROD: https://rachas-front-prod.onrender.com (api: https://rachas-api-prod.onrender.com)
 
@@ -227,6 +230,52 @@ Agregué un job nuevo a `ci.yml` que se encarga de avisarle a Render "actualizat
 **Por qué el hook lleva `&ref=$GITHUB_SHA` y no se llama pelado**: el deploy hook de Render, sin ese parámetro, despliega lo último que haya en la rama en ese momento. Si dos merges caen seguidos (algo que puede pasar), la corrida del primer commit podría terminar desplegando el código del segundo — que todavía no pasó por ningún test. Pasándole el commit exacto (`$GITHUB_SHA`, la variable que GitHub Actions llena sola con el hash del commit que está corriendo ese job), me aseguro de que QA reciba **ese** commit y no "lo último que haya".
 
 **Por qué el smoke test reintenta en vez de pedir una sola vez**: el hook de Render responde al toque, pero el build y el redeploy tardan unos minutos, y encima el free tier duerme el servicio si no tuvo tráfico. Un solo `curl` fallaría casi siempre por timing, no porque algo esté mal. Por eso reintento 30 veces cada 20 segundos (10 minutos en total) antes de dar el job por fallido. Y reviso **tres cosas**, no una sola: `/api/health` (el proceso está vivo), `/api/habits` (la base responde de verdad — un health check que no toca la base podría dar verde con la conexión rota) y el frontend (`/`). El `--max-time 10` va adentro de cada `curl`, no en el loop entero: si no le pongo un tope a cada intento, un servicio que "acepta la conexión pero no contesta" (típico de un cold start a medio despertar) podría colgar el job entero hasta que el runner lo mate por su propio límite, en vez de fallar ese intento puntual y reintentar.
+
+**Primera corrida real, comprobada**: el merge del PR #39 (commit `cc18eaad39cc603cfa99a6e2f530295966248a91`) disparó `deploy-qa`, el smoke test pasó en 27 segundos, y en Render la pestaña **Deploys** de `rachas-api-qa` muestra exactamente ese commit (`cc18eaa`) con **Trigger: Deploy Hook** — o sea que lo que quedó corriendo en QA es lo mismo que el pipeline acaba de verificar, y llegó por el hook del pipeline, no por un auto-deploy de Render.
+
+**Qué prueba mi smoke test y qué NO prueba**: prueba que el proceso está vivo, que puede hablar con su base de datos, y que el front se sirve — eso alcanza para saber que el entorno "funciona". Lo que **no** prueba es que la versión que responde sea la que el hook acaba de pedir: el hook de Render contesta al toque y el build/deploy sigue en curso en segundo plano, así que si pego el smoke justo en ese momento, podría estar recibiendo 200 OK todavía de la versión **anterior** (la que estaba corriendo antes de este deploy), no de la nueva. Mi `/api/health` no informa qué commit está corriendo, así que no tengo manera de detectar ese caso desde el smoke test tal como está. Sería necesario que `/api/health` devuelva también el commit (una variable de entorno que la imagen reciba al construirse) y que el smoke la compare contra `$GITHUB_SHA`. No lo implementé en este TP; queda como mejora conocida.
+
+## CI, Continuous Delivery y Continuous Deployment: cuál hice
+Hice **Continuous Delivery**: todo commit que llega a `main` y pasa los tests se despliega solo a QA, pero a PROD **no** llega solo — se frena en el environment `production` hasta que yo lo apruebo a mano. La diferencia con Continuous Deployment sería sacar ese `environment: production` con reviewer y dejar que `deploy-prod` corra automático apenas `deploy-qa` da verde.
+
+No haría Continuous Deployment todavía en este proyecto: mi red de seguridad automática es un smoke test de tres chequeos (¿vive?, ¿responde la base?, ¿se sirve el front?) y nada de eso me dice si una funcionalidad puntual se rompió (por ejemplo, si el cálculo de rachas empieza a devolver mal). Sin más cobertura de tests de integración real contra un entorno desplegado, y sin métricas/alertas en producción, automatizar también el último paso significaría automatizar la propagación de un error a los usuarios reales sin que nadie lo mire antes.
+
+## La letra chica del free tier, y cómo la maneja mi pipeline
+- **Cold start**: los servicios de Render se duermen a los ~15 minutos sin tráfico, y el primer pedido después de eso puede tardar hasta ~1 minuto en contestar. Por eso el smoke test de `deploy-qa` y `deploy-prod` reintenta 30 veces cada 20 segundos en vez de pedir una sola vez — un servicio dormido no es un servicio roto, y un `curl` seco lo confundiría con uno.
+- **Horas de instancia (750/mes) y minutos de build (500/mes), por workspace**: tengo 4 servicios (api/front × QA/PROD). Cada deploy de este TP dispara hasta 4 builds (2 por entorno). Si se me acaban los minutos de build, Render deja de reconstruir hasta fin de mes pero el hook sigue respondiendo 200 igual — mi smoke daría verde contra la versión **vieja**, sin que el pipeline se entere. No tengo una forma automática de detectar esto todavía (está relacionado con la misma limitación del smoke test que ya conté arriba: no sé qué commit está sirviendo cada entorno).
+- **Neon duerme el cómputo a los ~5 minutos idle** (se despierta solo y más rápido que Render) y tiene límite de almacenamiento (0.5 GB) — para el tamaño de esta app no debería ser un problema durante el semestre.
+
+## Qué garantía pierdo porque Render reconstruye en vez de correr mi imagen
+Mi pipeline publica una imagen ya construida y etiquetada por commit en `ghcr.io` (Tarea 1), pero el hook de Render **no usa esa imagen** — le pide a Render que clone el repo en ese commit y la vuelva a construir con su propia infraestructura. Lo comprobé en la práctica: al confirmar el subtítulo nuevo en PROD, tuve que mirar el bundle `.js` que sirve `rachas-front-prod.onrender.com` directamente, porque la imagen que yo había publicado en `ghcr.io` para ese mismo commit es un build **distinto** (mismo código fuente, pero no el mismo artefacto binario).
+
+Esto significa que "lo que verifiqué" y "lo que corre" son, técnicamente, dos construcciones separadas del mismo commit — no la misma unidad de release. En la enorme mayoría de los casos van a compilar exactamente igual, pero no hay ninguna garantía formal de eso: una dependencia que cambió de versión entre un build y el otro, o una imagen base de Docker que se actualizó en el medio, podría hacer que se comporten distinto. Pasar de "mismo commit, dos builds" a "mismo build en los dos lados" es, según entendí, exactamente lo que corrige el TP7.
+
+## Deployment pattern para una producción real, y plan de rollback (Tarea 6)
+**Pattern elegido: blue-green**, no canary ni rolling. Mi app no tiene tráfico real ni usuarios concurrentes que justifiquen exponer una versión nueva de a porcentajes (canary) o mantener dos versiones conviviendo mientras se reemplazan instancias de a tandas (rolling, que además me obligaría a pensar compatibilidad de esquema de BD entre versión vieja y nueva mientras conviven). Con blue-green tengo dos entornos completos (ya los tengo: es literalmente QA y PROD, aunque hoy uso QA para probar, no como "green" en espera) y el cambio de una versión a otra es un switch, no una migración gradual. Lo pagaría con el costo (2× infraestructura corriendo) pero a cambio tengo el rollback más simple posible: apuntar el tráfico de nuevo al entorno anterior.
+
+Lo combinaría con **feature flags** para las funcionalidades específicas que sean riesgosas (por ejemplo, si mañana cambio el cálculo de rachas), para poder desplegar el código apagado y prenderlo sin un nuevo deploy — hoy no tengo ningún flag armado, así que esto es una decisión para el futuro, no algo que ya esté hecho.
+
+**Lo que me falta hoy para hacer canary o blue-green en serio**: observabilidad. Ninguno de los dos patrones tiene sentido sin métricas que digan "esta versión nueva está fallando más que la vieja" — hoy mi única señal es el smoke test binario (responde / no responde), no una tasa de error ni latencia por versión.
+
+**Mi plan de rollback actual, paso a paso**:
+1. Identificar el último commit bueno conocido (lo veo en *Deployments* del repo, filtrado por `production`, o en el tag de la release anterior).
+2. Disparar los mismos dos deploy hooks de PROD (`RENDER_HOOK_API_PROD`, `RENDER_HOOK_FRONT_PROD`) con `&ref=<ese-commit>` en vez del commit roto — el mismo mecanismo que ya uso para desplegar, apuntado hacia atrás.
+3. Esperar a que en Render, pestaña **Deploys** de cada servicio, ese commit figure como **live**.
+
+🔴 **Todavía no medí este número de verdad** (el TP pide que sea medido, no estimado) — quedó pendiente para la próxima sesión de trabajo en este TP, disparando los hooks a mano con el commit anterior a `v6.0.0` y cronometrando desde el `curl` hasta que Render marque el deploy como live. Lo voy a completar antes de la defensa.
+
+Lo que este rollback **no** deshace: si el problema fue una migración de base de datos que borró o transformó una columna, volver el código atrás no revierte esos datos — para eso haría falta una migración de reversa explícita, que no es lo mismo que "desplegar la versión anterior".
+
+## Declaración de uso de IA (Sexto TP)
+Usé Claude como guía activa durante toda esta implementación, no solo al final:
+- Adaptar la guía del TP (con ejemplos en .NET/Render/Neon) a mi stack Python (FastAPI + SQLAlchemy) + React, incluyendo detectar qué partes de la guía no aplicaban tal cual (formato de connection string, nombres de tabla sin comillas, rutas de `Root Directory` distintas porque mi código no está en la raíz del repo).
+- Escribir y revisar los cambios de `ci.yml` (jobs `deploy-qa`/`deploy-prod`, permisos, condiciones) y la plantilla de nginx.
+- Diagnosticar en vivo dos errores reales que tuve en Render (el `channel_binding` truncado en la connection string, y el `DNS_RESOLVER` que me olvidé de cargar) — en los dos casos discutí el error, entendí la causa antes de aplicar el arreglo, y lo verifiqué yo mismo mirando los logs y repitiendo la prueba.
+- Redactar este documento, sección por sección, a medida que cerrábamos cada parte del TP (no como un resumen escrito al final sin haber hecho el trabajo).
+
+**Cómo lo verifiqué**: cada corrida de Actions la miré yo en la pestaña *Actions* antes de darla por buena; el rechazo y la aprobación del gate los hice yo mismo desde la interfaz de GitHub; los cuatro servicios de Render los creé y configuré yo; y las comprobaciones de aislamiento de bases (QA vs PROD) y de que el cambio visible llegó a PROD las corrí yo contra las URLs reales, no contra una simulación.
+
+Puedo explicar cada línea de los jobs `deploy-qa` y `deploy-prod`, por qué el `&ref=$GITHUB_SHA` es necesario, por qué `deploy-prod` no repite el `if` de rama, y qué garantías tiene (y no tiene) la cadena de publicación.
 
 ## El job `deploy-prod`: el gate humano
 Es casi igual al de QA, con tres diferencias que son justamente el punto de esta tarea:
