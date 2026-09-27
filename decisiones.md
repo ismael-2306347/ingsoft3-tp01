@@ -1,3 +1,17 @@
+## Enlaces de este TP (TP6 — el más reciente)
+_(el detalle y la explicación de cada uno están en la sección "Sexto TP", más abajo, junto con el resto de las decisiones del práctico)_
+- Paquete backend: https://github.com/ismael-2306347/ingsoft3-tp01/pkgs/container/ingsoft3-tp01-backend
+- Paquete frontend: https://github.com/ismael-2306347/ingsoft3-tp01/pkgs/container/ingsoft3-tp01-frontend
+- Corrida de un PR con "Entrar al registry" salteado: https://github.com/ismael-2306347/ingsoft3-tp01/actions/runs/36323844538/job/108632699527
+- Corrida de `main` con el build+publish como último paso: https://github.com/ismael-2306347/ingsoft3-tp01/actions/runs/36323945709
+- Release: https://github.com/ismael-2306347/ingsoft3-tp01/releases/tag/v6.0.0
+- Rechazo documentado de `deploy-prod`: https://github.com/ismael-2306347/ingsoft3-tp01/actions/runs/36328813191
+- Aprobación + deploy real a PROD: https://github.com/ismael-2306347/ingsoft3-tp01/actions/runs/36329849098
+- URL de QA: https://rachas-front-qa.onrender.com (api: https://rachas-api-qa.onrender.com)
+- URL de PROD: https://rachas-front-prod.onrender.com (api: https://rachas-api-prod.onrender.com)
+
+---
+
 # Primer TP
 ## Por que Git no pudo resolver el conflicto solo?
 porque ambos PR estaban intentando escribir la misma linea.
@@ -209,7 +223,7 @@ Puedo explicar qué verifica cada assert y qué casos no están cubiertos: los `
 - URL de PROD: https://rachas-front-prod.onrender.com (api: https://rachas-api-prod.onrender.com)
 
 ## Los 4 servicios en Render
-Backend y frontend, por cada entorno, los cuatro con Docker y Auto-Deploy en Off (el deploy lo va a disparar el pipeline, no Render solo). El Root Directory de cada uno apunta a `habit-tracker-app/backend` o `habit-tracker-app/frontend`, porque en mi repo el código no está en la raíz.
+Backend y frontend, por cada entorno, los cuatro con Docker y Auto-Deploy en Off (el deploy lo va a disparar el pipeline, no Render solo). El Root Directory de cada uno apunta a `habit-tracker-app/backend` o `habit-tracker-app/frontend`, porque en mi repo el código no está en la raíz. Reconfirmé el Auto-Deploy en Off en los 4 servicios antes de cerrar el TP, mirando **Settings** de cada uno en Render.
 
 **Cómo comprobé que QA y PROD usan bases separadas de verdad**: en vez de insertar el dato a mano por SQL, usé la propia API — le hice un `POST /api/habits` a PROD creando un hábito llamado "SOY PROD", y después pedí el listado (`GET /api/habits`) en los dos entornos: apareció en PROD y **no** apareció en QA. Confirma que cada backend está escribiendo en su propia base de Neon.
 
