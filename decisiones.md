@@ -217,6 +217,17 @@ Backend y frontend, por cada entorno, los cuatro con Docker y Auto-Deploy en Off
 ## Elegí Render + Neon
 Es el camino que sigue la guía paso a paso de la cátedra, es gratis y no pide tarjeta. Render corre mis contenedores (uso mis mismos Dockerfiles de siempre), Neon me da la base de datos Postgres. La alternativa sin ninguna cuenta externa (todo local, con mi PC como "runner" de GitHub) también era válida, pero preferí practicar con un proveedor real porque es más parecido a un trabajo real.
 
+## El job `deploy-qa`: la promoción automática
+Agregué un job nuevo a `ci.yml` que se encarga de avisarle a Render "actualizate" y después comprobar que QA haya quedado funcionando. Tres decisiones de diseño:
+
+- **`needs: [build-backend, build-frontend]`**: este job no arranca hasta que los dos jobs de build/test terminen bien. Si cualquiera de los dos falla, `deploy-qa` ni se ejecuta — no hay forma de que se dispare un deploy sin verificación previa.
+- **`if: github.ref == 'refs/heads/main'`**: como mi workflow escucha tanto `pull_request` como `push`, y los jobs de los que depende corren en los dos casos, necesito este chequeo para que un Pull Request no dispare un deploy — solo un push real a `main` tiene `github.ref` igual a `refs/heads/main`.
+- **`environment: qa`**: conecta el job al environment que creé en GitHub, así hereda sus dos secrets (los deploy hooks) sin que yo tenga que pasarlos a mano en ningún lado del YAML.
+
+**Por qué el hook lleva `&ref=$GITHUB_SHA` y no se llama pelado**: el deploy hook de Render, sin ese parámetro, despliega lo último que haya en la rama en ese momento. Si dos merges caen seguidos (algo que puede pasar), la corrida del primer commit podría terminar desplegando el código del segundo — que todavía no pasó por ningún test. Pasándole el commit exacto (`$GITHUB_SHA`, la variable que GitHub Actions llena sola con el hash del commit que está corriendo ese job), me aseguro de que QA reciba **ese** commit y no "lo último que haya".
+
+**Por qué el smoke test reintenta en vez de pedir una sola vez**: el hook de Render responde al toque, pero el build y el redeploy tardan unos minutos, y encima el free tier duerme el servicio si no tuvo tráfico. Un solo `curl` fallaría casi siempre por timing, no porque algo esté mal. Por eso reintento 30 veces cada 20 segundos (10 minutos en total) antes de dar el job por fallido. Y reviso **tres cosas**, no una sola: `/api/health` (el proceso está vivo), `/api/habits` (la base responde de verdad — un health check que no toca la base podría dar verde con la conexión rota) y el frontend (`/`). El `--max-time 10` va adentro de cada `curl`, no en el loop entero: si no le pongo un tope a cada intento, un servicio que "acepta la conexión pero no contesta" (típico de un cold start a medio despertar) podría colgar el job entero hasta que el runner lo mate por su propio límite, en vez de fallar ese intento puntual y reintentar.
+
 ## Por qué el artefacto se publica solo si los tests pasaron
 No agregué ningún `if` que diga explícitamente "si los tests pasaron, publicá". No hace falta: los pasos de un job de GitHub Actions corren en orden, uno detrás del otro, y si uno falla, el job se corta ahí y los pasos que quedan abajo **no llegan a ejecutarse**. Como el paso que construye y publica la imagen final quedó como el **último** paso del mismo job que corre los tests, si los tests fallan, ese paso nunca corre. La condición está en el orden de los pasos, no en una línea de código que la explique.
 
