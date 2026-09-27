@@ -262,7 +262,12 @@ Lo combinaría con **feature flags** para las funcionalidades específicas que s
 2. Disparar los mismos dos deploy hooks de PROD (`RENDER_HOOK_API_PROD`, `RENDER_HOOK_FRONT_PROD`) con `&ref=<ese-commit>` en vez del commit roto — el mismo mecanismo que ya uso para desplegar, apuntado hacia atrás.
 3. Esperar a que en Render, pestaña **Deploys** de cada servicio, ese commit figure como **live**.
 
-🔴 **Todavía no medí este número de verdad** (el TP pide que sea medido, no estimado) — quedó pendiente para la próxima sesión de trabajo en este TP, disparando los hooks a mano con el commit anterior a `v6.0.0` y cronometrando desde el `curl` hasta que Render marque el deploy como live. Lo voy a completar antes de la defensa.
+**Medido de verdad, no estimado**: para probarlo, primero mergeé y aprobé un cambio más que se nota en pantalla (subtítulo "(v2 — simulacro de rollback)"), así PROD quedó en un commit distinto al de la release. Después disparé a mano los dos deploy hooks de PROD con `&ref=891ebf68fe65e98729547d078f42ba98b62c8776` (el commit de `v6.0.0`) desde mi propia terminal — sin pasar por el pipeline, exactamente como haría en un incidente real donde no puedo esperar a un PR. Render mismo midió el tiempo entre el hook y el deploy quedando `live` (columna **DURATION** en la pestaña *Deploys* de cada servicio):
+
+- `rachas-api-prod`: **28,1s**
+- `rachas-front-prod`: **25,3s**
+
+Confirmé el resultado contra la URL real: pedí el bundle `.js` que sirve `rachas-front-prod.onrender.com` y el subtítulo volvió a ser el original, sin el "(v2)". Rollback completo (los dos servicios) en **menos de 30 segundos** cada uno — bastante rápido, aunque hay que sumarle el tiempo de detectar el problema y decidir revertir, que no está incluido en esta medición.
 
 Lo que este rollback **no** deshace: si el problema fue una migración de base de datos que borró o transformó una columna, volver el código atrás no revierte esos datos — para eso haría falta una migración de reversa explícita, que no es lo mismo que "desplegar la versión anterior".
 
