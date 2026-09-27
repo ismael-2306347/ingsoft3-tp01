@@ -198,13 +198,12 @@ Puedo explicar qué verifica cada assert y qué casos no están cubiertos: los `
 # Sexto TP
 
 ## Enlaces de este TP
-_(se completa a medida que avanza el TP — falta hacer el primer merge a `main` para tener corridas y paquetes reales)_
-- Paquete backend: TODO
-- Paquete frontend: TODO
-- Corrida de un PR con "Entrar al registry" salteado: TODO
-- Corrida de `main` con el build+publish como último paso: TODO
-- URL de QA: TODO
-- URL de PROD: TODO
+- Paquete backend: https://github.com/ismael-2306347/ingsoft3-tp01/pkgs/container/ingsoft3-tp01-backend
+- Paquete frontend: https://github.com/ismael-2306347/ingsoft3-tp01/pkgs/container/ingsoft3-tp01-frontend
+- Corrida de un PR con "Entrar al registry" salteado: https://github.com/ismael-2306347/ingsoft3-tp01/actions/runs/36323844538/job/108632699527
+- Corrida de `main` con el build+publish como último paso: https://github.com/ismael-2306347/ingsoft3-tp01/actions/runs/36323945709
+- URL de QA: _(pendiente — se completa en la Fase 4/5 del TP, cuando exista el servicio en Render)_
+- URL de PROD: _(pendiente — ídem)_
 
 ## Elegí Render + Neon
 Es el camino que sigue la guía paso a paso de la cátedra, es gratis y no pide tarjeta. Render corre mis contenedores (uso mis mismos Dockerfiles de siempre), Neon me da la base de datos Postgres. La alternativa sin ninguna cuenta externa (todo local, con mi PC como "runner" de GitHub) también era válida, pero preferí practicar con un proveedor real porque es más parecido a un trabajo real.
