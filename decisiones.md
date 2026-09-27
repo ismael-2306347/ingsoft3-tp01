@@ -202,8 +202,17 @@ Puedo explicar qué verifica cada assert y qué casos no están cubiertos: los `
 - Paquete frontend: https://github.com/ismael-2306347/ingsoft3-tp01/pkgs/container/ingsoft3-tp01-frontend
 - Corrida de un PR con "Entrar al registry" salteado: https://github.com/ismael-2306347/ingsoft3-tp01/actions/runs/36323844538/job/108632699527
 - Corrida de `main` con el build+publish como último paso: https://github.com/ismael-2306347/ingsoft3-tp01/actions/runs/36323945709
-- URL de QA: _(pendiente — se completa en la Fase 4/5 del TP, cuando exista el servicio en Render)_
-- URL de PROD: _(pendiente — ídem)_
+- URL de QA: https://rachas-front-qa.onrender.com (api: https://rachas-api-qa.onrender.com)
+- URL de PROD: https://rachas-front-prod.onrender.com (api: https://rachas-api-prod.onrender.com)
+
+## Los 4 servicios en Render
+Backend y frontend, por cada entorno, los cuatro con Docker y Auto-Deploy en Off (el deploy lo va a disparar el pipeline, no Render solo). El Root Directory de cada uno apunta a `habit-tracker-app/backend` o `habit-tracker-app/frontend`, porque en mi repo el código no está en la raíz.
+
+**Cómo comprobé que QA y PROD usan bases separadas de verdad**: en vez de insertar el dato a mano por SQL, usé la propia API — le hice un `POST /api/habits` a PROD creando un hábito llamado "SOY PROD", y después pedí el listado (`GET /api/habits`) en los dos entornos: apareció en PROD y **no** apareció en QA. Confirma que cada backend está escribiendo en su propia base de Neon.
+
+## Problemas encontrados en esta fase
+- **`channel_binding=requi` en vez de `requi`+`re`**: al pegar la cadena de conexión de Neon en la variable `DATABASE_URL` de Render, la palabra `require` del parámetro `channel_binding` quedó cortada a `requi`, y el backend no arrancaba (`invalid channel_binding value`). Solución: saqué directamente `&channel_binding=require` de la cadena en los dos backends — con `sslmode=require` la conexión ya queda encriptada, que es lo que necesito para el TP.
+- **Me olvidé de poner `DNS_RESOLVER` en el frontend de QA**: sin esa variable, la plantilla de nginx queda con `resolver ;` (vacío), así que no puede resolver la dirección del backend y el front devuelve `502 Bad Gateway` después de colgarse un rato intentando. Al agregar `DNS_RESOLVER=8.8.8.8` y esperar el redeploy automático (cambiar una variable de entorno reinicia el servicio aunque Auto-Deploy esté en Off), se solucionó.
 
 ## Elegí Render + Neon
 Es el camino que sigue la guía paso a paso de la cátedra, es gratis y no pide tarjeta. Render corre mis contenedores (uso mis mismos Dockerfiles de siempre), Neon me da la base de datos Postgres. La alternativa sin ninguna cuenta externa (todo local, con mi PC como "runner" de GitHub) también era válida, pero preferí practicar con un proveedor real porque es más parecido a un trabajo real.
