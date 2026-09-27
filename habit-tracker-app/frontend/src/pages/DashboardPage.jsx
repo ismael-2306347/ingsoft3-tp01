@@ -83,7 +83,10 @@ export default function DashboardPage() {
   return (
     <div className="app-container">
       <header className="app-header">
-        <h1>Rachas</h1>
+        <div>
+          <h1>Rachas</h1>
+          <p className="app-subtitle">Seguí tus hábitos, día a día.</p>
+        </div>
         <button className="btn btn-primary" onClick={() => setShowForm(true)}>
           + Nuevo hábito
         </button>
