@@ -194,3 +194,57 @@ Usé Claude como guía paso a paso para:
 - Revisé en GitHub Actions que cada corrida verde y roja hiciera lo esperado.
 
 Puedo explicar qué verifica cada assert y qué casos no están cubiertos: los `?? 0` de `streakMessage`, los wrappers del cliente de API que no se llaman, y la integración real con el backend, que queda para el TP7.
+
+# Sexto TP
+
+## Enlaces de este TP
+_(se completa a medida que avanza el TP — falta hacer el primer merge a `main` para tener corridas y paquetes reales)_
+- Paquete backend: TODO
+- Paquete frontend: TODO
+- Corrida de un PR con "Entrar al registry" salteado: TODO
+- Corrida de `main` con el build+publish como último paso: TODO
+- URL de QA: TODO
+- URL de PROD: TODO
+
+## Elegí Render + Neon
+Es el camino que sigue la guía paso a paso de la cátedra, es gratis y no pide tarjeta. Render corre mis contenedores (uso mis mismos Dockerfiles de siempre), Neon me da la base de datos Postgres. La alternativa sin ninguna cuenta externa (todo local, con mi PC como "runner" de GitHub) también era válida, pero preferí practicar con un proveedor real porque es más parecido a un trabajo real.
+
+## Por qué el artefacto se publica solo si los tests pasaron
+No agregué ningún `if` que diga explícitamente "si los tests pasaron, publicá". No hace falta: los pasos de un job de GitHub Actions corren en orden, uno detrás del otro, y si uno falla, el job se corta ahí y los pasos que quedan abajo **no llegan a ejecutarse**. Como el paso que construye y publica la imagen final quedó como el **último** paso del mismo job que corre los tests, si los tests fallan, ese paso nunca corre. La condición está en el orden de los pasos, no en una línea de código que la explique.
+
+Antes, el build de la imagen (el que ya tenía desde el TP4) estaba **antes** de los tests, porque en el TP4 solo servía para comprobar que la imagen compilaba. Ahora que ese mismo build también publica, tuve que moverlo al final: si se hubiera quedado arriba, se publicaría una imagen sin saber todavía si los tests pasaron.
+
+Además, agregué una condición extra en el paso que publica: `push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}`. Esto es para que **solo** una corrida disparada por un push a `main` publique algo — las corridas de un Pull Request (que se disparan por el evento `pull_request`) construyen y testean igual, pero nunca suben nada al registro de imágenes. Así, lo único que puede llegar al registro es código que ya pasó por un Pull Request y ya está integrado a `main`.
+
+Con esas dos cosas encadenadas (el orden de los pasos + la condición de rama) queda una garantía sin necesidad de vigilarla a mano: nada llega al registro sin haber pasado los tests, y nada llega sin haber pasado por `main`.
+
+## Permisos mínimos para publicar
+El permiso `packages: write` (poder subir paquetes/imágenes) lo puse **adentro de cada job** (`build-backend` y `build-frontend`), no una sola vez arriba de todo el archivo. Si lo hubiera puesto a nivel de todo el workflow, sería el permiso por defecto de **todos** los jobs presentes y futuros, aunque no publiquen nada. Poniéndolo por job, cada uno tiene exactamente lo que necesita y nada más — esto se llama "principio de mínimo privilegio": darle a cada parte del sistema solo el permiso que necesita para hacer su trabajo, ni uno más.
+
+También agregué `contents: read` en los mismos jobs porque, al declarar `permissions:` explícitamente, todo lo que no se lista queda **sin permiso** — y sin `contents: read` el paso de `checkout` (bajar el código) no puede funcionar.
+
+## No hizo falta ningún secret nuevo para esto
+Para poder subir la imagen a `ghcr.io` (el registro de imágenes de GitHub) usé `secrets.GITHUB_TOKEN`, que GitHub genera automáticamente en cada corrida y que ya vive ahí sin que yo tenga que crear ni guardar nada.
+
+## Cómo quedan nombradas las imágenes
+`ghcr.io/ismael-2306347/ingsoft3-tp01-backend:sha-<commit>` y lo mismo para `-frontend`. La etiqueta es el hash del commit que la generó, así que siempre puedo saber de qué código exacto salió cada imagen — a diferencia de una etiqueta como `latest`, que no dice nada por sí sola.
+
+## Dos bases de datos separadas en Neon
+Creé `app_qa` y `app_prod` como bases distintas dentro del mismo proyecto de Neon (gratis, sin tarjeta). Si compartiera una sola base entre los dos entornos, un dato de prueba cargado en QA aparecería también en PROD — cada entorno tiene que tener su propio almacenamiento, tan separado como su propia configuración.
+
+Mi backend usa SQLAlchemy y crea las tablas solo (`Base.metadata.create_all()` al arrancar, en `main.py`), así que no hace falta correr ninguna migración a mano contra cada base: las tablas van a aparecer la primera vez que el backend arranque en Render, apuntando a cada connection string.
+
+📌 Mis tablas se llaman `habits` y `habit_logs`, todo en minúsculas (así las definí en `models.py`). El TP (escrito para .NET/Entity Framework) advierte de un problema con nombres de tabla en mayúsculas y comillas en Postgres — a mí no me afecta, cualquier `select count(*) from habits;` sin comillas funciona.
+
+## El nginx del frontend ya no tiene la dirección del backend escrita fija
+Mi `nginx.conf` tenía `http://backend:8000` escrito directo en el archivo — funciona en docker-compose porque ahí "backend" es el nombre del servicio, pero en Render cada entorno (QA y PROD) tiene su propia URL pública distinta, y ese nombre no existe. Si dejaba la dirección fija, necesitaría una imagen de frontend distinta para QA y otra para PROD.
+
+La solución (siguiendo la guía): renombré el archivo a `default.conf.template` y reemplacé la dirección fija por dos variables, `${BACKEND_URL}` y `${DNS_RESOLVER}`. La imagen oficial de nginx, cuando encuentra archivos en `/etc/nginx/templates/`, los procesa al arrancar el contenedor y reemplaza esas variables por su valor real — recién ahí queda armado el archivo de configuración definitivo. Por eso el archivo tiene que vivir en `templates/` y no en `conf.d/`: en `conf.d/` nginx lo leería tal cual, con los `${...}` sin reemplazar, y ni siquiera arrancaría.
+
+En el `Dockerfile` dejé esas dos variables con un valor por defecto igual al de mi `docker-compose.yml` (`http://backend:8000` y `127.0.0.11`, el DNS interno de Docker), así mi `docker compose up` de siempre sigue funcionando sin tocar nada. En Render, cada servicio de frontend va a tener sus propias variables (`BACKEND_URL` con la URL pública de la api de **su mismo entorno**, `DNS_RESOLVER=8.8.8.8` porque ahí no hay DNS interno de Docker) — la misma imagen, corriendo con dos configuraciones distintas.
+
+**Cómo lo comprobé antes de subirlo**: construí la imagen y la corrí dos veces, una sin variables (como en compose) y otra con variables tipo Render, y miré el archivo de configuración que nginx arma en cada caso:
+- sin variables → `resolver 127.0.0.11 ...` / `set $backend_api http://backend:8000;` (igual que antes)
+- con variables → `resolver 8.8.8.8 ...` / `set $backend_api https://mi-api-qa.onrender.com;`
+
+Los dos casos dieron lo esperado, así que la misma imagen sirve para los dos entornos.

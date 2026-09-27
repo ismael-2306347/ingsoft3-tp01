@@ -15,6 +15,12 @@ ENTRYPOINT ["npm", "run", "test:ci"]
 
 #ETAPA 3: runtime (imagen mínima, sin herramientas de build). Tiene que quedar ÚLTIMA.
 FROM nginx:alpine
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# La plantilla va en templates/, no en conf.d/: ahí nginx reemplaza las
+# variables ${...} al arrancar. En conf.d/ las dejaría tal cual, sin resolver.
+COPY default.conf.template /etc/nginx/templates/default.conf.template
 COPY --from=build /app/dist /usr/share/nginx/html
+# Valores por defecto: los que usa docker-compose (el nombre del servicio y el
+# DNS interno de Docker). Render los pisa con las variables del servicio.
+ENV BACKEND_URL=http://backend:8000 \
+    DNS_RESOLVER=127.0.0.11
 EXPOSE 80

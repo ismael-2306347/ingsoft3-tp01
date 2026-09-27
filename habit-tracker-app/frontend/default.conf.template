@@ -1,0 +1,29 @@
+server {
+    listen 80;
+
+    # SPA: estáticos, con fallback a index.html para las rutas del router de React
+    location / {
+        root /usr/share/nginx/html;
+        index index.html;
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Todo lo que llegue a /api se reenvía al backend. La dirección y el DNS
+    # llegan por variables de entorno, resueltas por la imagen de nginx al
+    # arrancar (por eso este archivo vive en /etc/nginx/templates/, no en
+    # conf.d/): en docker-compose, el nombre del servicio y el DNS interno de
+    # Docker; en Render, la URL pública de la api de ESTE entorno (QA o PROD)
+    # y un DNS público. Así la MISMA imagen sirve para los dos entornos.
+    #
+    # La dirección va en una VARIABLE, no escrita directo en el proxy_pass: con
+    # el valor directo, nginx lo resuelve AL ARRANCAR y si el backend todavía
+    # no existe, se niega a levantar ("host not found in upstream"). Con
+    # variable, resuelve recién cuando llega un pedido.
+    resolver ${DNS_RESOLVER} valid=10s ipv6=off;
+    set $backend_api ${BACKEND_URL};
+
+    location /api/ {
+        proxy_pass $backend_api;
+        proxy_ssl_server_name on;   # la api de Render es https: sin esto el TLS no sabe a qué host va
+    }
+}
