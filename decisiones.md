@@ -228,6 +228,17 @@ Agregué un job nuevo a `ci.yml` que se encarga de avisarle a Render "actualizat
 
 **Por qué el smoke test reintenta en vez de pedir una sola vez**: el hook de Render responde al toque, pero el build y el redeploy tardan unos minutos, y encima el free tier duerme el servicio si no tuvo tráfico. Un solo `curl` fallaría casi siempre por timing, no porque algo esté mal. Por eso reintento 30 veces cada 20 segundos (10 minutos en total) antes de dar el job por fallido. Y reviso **tres cosas**, no una sola: `/api/health` (el proceso está vivo), `/api/habits` (la base responde de verdad — un health check que no toca la base podría dar verde con la conexión rota) y el frontend (`/`). El `--max-time 10` va adentro de cada `curl`, no en el loop entero: si no le pongo un tope a cada intento, un servicio que "acepta la conexión pero no contesta" (típico de un cold start a medio despertar) podría colgar el job entero hasta que el runner lo mate por su propio límite, en vez de fallar ese intento puntual y reintentar.
 
+## El job `deploy-prod`: el gate humano
+Es casi igual al de QA, con tres diferencias que son justamente el punto de esta tarea:
+
+- **`environment: production`**, que tiene un *required reviewer* (yo mismo) configurado. Apenas este job llega a esa línea, GitHub lo **pausa** — no arranca ningún paso hasta que alguien con permiso lo apruebe desde la pestaña Actions. No hay ningún botón de "deploy" en mi workflow: es el propio job el que se congela solo.
+- **No repetí el `if: github.ref == 'refs/heads/main'`** en este job, y no me olvidé: como `deploy-prod` depende de `deploy-qa` (`needs: deploy-qa`), y `deploy-qa` sí tiene ese `if`, en un Pull Request `deploy-qa` se saltea — y si el job del que dependo no corrió, `deploy-prod` tampoco corre. La condición de rama se hereda por la cadena, no hace falta escribirla dos veces.
+- **`concurrency: { group: deploy-prod, cancel-in-progress: false }`**: agrupa todas las corridas que intenten desplegar a PROD bajo el mismo "carril", para que no se pisen dos deploys al mismo tiempo. Ojo: leí que esto **no** resuelve el caso de dos corridas esperando aprobación a la vez (un job pausado esperando reviewer no está "en cola", según la documentación de GitHub) — así que si alguna vez veo dos corridas esperando mi aprobación juntas, la regla real es mía: rechazar la más vieja a mano, con su motivo, y aprobar solo la más nueva.
+
+El resto (el `&ref=$GITHUB_SHA` y el smoke test con reintentos) es exactamente la misma idea que en QA, aplicada a las URLs de PROD.
+
+**Qué mira mi aprobador (yo mismo) antes de aprobar un deploy a producción**: que el job `deploy-qa` haya terminado en verde (o sea, que ya está probado en un entorno real, no solo que "compiló"), que el cambio que trae ese commit sea el que espero (lo reviso mirando el PR que se mergeó), y que no haya otra corrida más nueva esperando aprobación al mismo tiempo (si la hay, rechazo la vieja primero).
+
 ## Por qué el artefacto se publica solo si los tests pasaron
 No agregué ningún `if` que diga explícitamente "si los tests pasaron, publicá". No hace falta: los pasos de un job de GitHub Actions corren en orden, uno detrás del otro, y si uno falla, el job se corta ahí y los pasos que quedan abajo **no llegan a ejecutarse**. Como el paso que construye y publica la imagen final quedó como el **último** paso del mismo job que corre los tests, si los tests fallan, ese paso nunca corre. La condición está en el orden de los pasos, no en una línea de código que la explique.
 
