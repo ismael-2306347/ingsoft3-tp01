@@ -278,3 +278,10 @@ En el `Dockerfile` dejé esas dos variables con un valor por defecto igual al de
 - con variables → `resolver 8.8.8.8 ...` / `set $backend_api https://mi-api-qa.onrender.com;`
 
 Los dos casos dieron lo esperado, así que la misma imagen sirve para los dos entornos.
+
+## Evidencia del gate: un rechazo y una aprobación
+La primera vez que `deploy-prod` quedó pausado esperando aprobación (corrida del merge del PR #41, commit `8cd1ce2`), lo **rechacé** a propósito, para dejar probado que el gate realmente puede decir que no. Motivo que escribí en el rechazo: *"Lo rechazo porq estoy probando la review manual"* — es corto pero es mío y real: en ese momento el job recién se había escrito, y antes de aprobar un deploy real quería una corrida más para confirmar que todo el circuito (hook + smoke test) funciona bien de punta a punta, no solo que "compiló".
+
+El job `deploy-prod` de esa corrida quedó marcado como **failure** — no porque algo se haya roto, sino porque así es como GitHub registra un rechazo: la máquina obedeció al humano. Corrida: https://github.com/ismael-2306347/ingsoft3-tp01/actions/runs/36328813191
+
+Para la aprobación usé un cambio que se nota de verdad en pantalla (no un comentario en el YAML): un subtítulo debajo del título "Rachas" en el Dashboard (`src/pages/DashboardPage.jsx` y `src/styles.css`). Esta vez, en el "Review deployments", elegí **Approve and deploy**.

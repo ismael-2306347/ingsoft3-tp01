@@ -22,6 +22,12 @@ body {
   margin-bottom: 24px;
 }
 
+.app-subtitle {
+  margin: 0;
+  color: #616e7c;
+  font-size: 0.9rem;
+}
+
 .habit-list {
   display: flex;
   flex-direction: column;
