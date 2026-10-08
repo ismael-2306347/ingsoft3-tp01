@@ -1,5 +1,11 @@
 ## Enlaces del TP7 (el más reciente)
 _(el detalle y la explicación de cada uno están en la sección "Séptimo TP", más abajo. Se completa a medida que avanza el TP)_
+- Paquete backend: https://github.com/ismael-2306347/ingsoft3-tp01/pkgs/container/ingsoft3-tp01-backend
+- Paquete frontend: https://github.com/ismael-2306347/ingsoft3-tp01/pkgs/container/ingsoft3-tp01-frontend
+- Corrida donde los 4 entornos pasaron a ejecutar la imagen por `imgURL` (Tarea 1): https://github.com/ismael-2306347/ingsoft3-tp01/actions/runs/37780389849
+- URL de QA: https://rachas-front-qa.onrender.com (api: https://rachas-api-qa.onrender.com)
+- URL de PROD: https://rachas-front-prod.onrender.com (api: https://rachas-api-prod.onrender.com)
+- El resto (integración, e2e, el par verde/rojo, la release `v7.0.0`) se completa en las próximas fases.
 
 ---
 
@@ -381,3 +387,8 @@ Probé el mecanismo primero con **uno solo** (`rachas-api-qa`): disparé su Depl
 En `deploy-qa` y `deploy-prod`, el paso que dispara el deploy hook de Render cambió de mandar `&ref=$GITHUB_SHA` (que le decía a Render "reconstruí este commit") a mandar `imgURL=ghcr.io/.../...-backend:sha-$GITHUB_SHA` por `--get --data-urlencode` (que le dice "ejecutá esta imagen exacta"). El `&ref=` se saca del todo: ya no hay nada que construir, y dejarlo haría pensar que Render todavía compila.
 
 `--get --data-urlencode` hace dos cosas a la vez: agrega el parámetro con `&` (el hook ya trae `?key=...` desde antes) y le escapa los `:` y `/` que tiene la URL de la imagen, que si no quedarían mal interpretados en la query string.
+
+## Checkpoint cerrado: la cadena completa ejecutando la imagen
+El merge que cambió `&ref=` por `imgURL` (commit `bcd1dc308ace39025bae358b2ad86c7af4dd1cbc`) corrió de punta a punta: `deploy-qa` disparó el deploy con `imgURL` y el smoke pasó, aprobé `deploy-prod`, y también pasó. Confirmé en **Events** de los **cuatro** servicios (api y front, QA y PROD) que el deploy más reciente dice **"Triggered via Deploy Hook"** y nombra la imagen `sha-bcd1dc3...` de ese commit — no una reconstrucción. Con esto, la Tarea 1 del TP7 queda cerrada: los cuatro entornos ejecutan la imagen que el pipeline publicó, no una reconstrucción del repo.
+
+Corrida: https://github.com/ismael-2306347/ingsoft3-tp01/actions/runs/37780389849
