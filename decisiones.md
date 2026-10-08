@@ -371,3 +371,13 @@ El TP6 dejó mi cadena de CD funcionando pero con una limitación a propósito: 
 
 ## Un detalle de mi stack que la guía no tiene en cuenta: 422, no 400
 La guía está escrita para una API en .NET, y sus ejemplos de "dato inválido" esperan que la api conteste `400 Bad Request`. Mi backend es **FastAPI** (Python), y FastAPI/Pydantic devuelven **422 Unprocessable Entity** cuando el cuerpo del pedido no pasa la validación del schema (por ejemplo, `name` vacío, que en mi `schemas.py` tiene `min_length=1`). No es un bug ni algo que tenga que "arreglar" para que de 400: es el código de estado estándar que usa FastAPI para este caso, y mis pruebas de integración y e2e van a verificar **422**, no 400.
+
+## Los 4 servicios de Render pasaron a "Existing Image"
+Les cambié la fuente (no los recreé: así conservan la URL, las variables, el deploy hook y el historial) de **Docker** (reconstruye desde el repo) a **Existing Image**, apuntando los cuatro al `sha-53a041267335e40fffee0501884cb22320d5341d` del checkpoint — es solo el punto de partida, porque de ahí en más cada deploy del pipeline le dice a Render qué imagen correr.
+
+Probé el mecanismo primero con **uno solo** (`rachas-api-qa`): disparé su Deploy Hook a mano con el parámetro `imgURL` apuntando a esa imagen, confirmé en *Events* que decía "Deploy live for..." con ese `sha-`, y que `/api/health` contestaba. Recién después cambié la fuente de los otros tres — a esos no hacía falta probarlos uno por uno, porque el próximo deploy del pipeline (que ya manda `imgURL` a los cuatro) iba a ejercitarlos a todos juntos.
+
+## El pipeline: `&ref=` se convierte en `imgURL`
+En `deploy-qa` y `deploy-prod`, el paso que dispara el deploy hook de Render cambió de mandar `&ref=$GITHUB_SHA` (que le decía a Render "reconstruí este commit") a mandar `imgURL=ghcr.io/.../...-backend:sha-$GITHUB_SHA` por `--get --data-urlencode` (que le dice "ejecutá esta imagen exacta"). El `&ref=` se saca del todo: ya no hay nada que construir, y dejarlo haría pensar que Render todavía compila.
+
+`--get --data-urlencode` hace dos cosas a la vez: agrega el parámetro con `&` (el hook ya trae `?key=...` desde antes) y le escapa los `:` y `/` que tiene la URL de la imagen, que si no quedarían mal interpretados en la query string.
