@@ -421,3 +421,18 @@ La guía explica que hay dos formas válidas: armar la api en memoria dentro del
 
 ## Cómo probé las 6 pruebas antes de subirlas
 Levanté mi `docker compose` local (`docker compose up -d --build`, desde `habit-tracker-app/`) y corrí cada suite contra sus puertos: `API_BASE_URL=http://localhost:8000` para la de integración, `E2E_BASE_URL=http://localhost:3000` para la de navegador (con `--trace on` para ver que la traza se grababa incluso en los tests que pasan). Las 6 pasaron. De paso encontré un bug mío: había escrito `import { configDefaults } from "vite"` en `vite.config.js`, cuando en realidad `configDefaults` se exporta desde `vitest/config` — el build del frontend fallaba con `SyntaxError: ... does not provide an export named 'configDefaults'`. Lo arreglé separando el import.
+
+## Las dos suites como gate: la cadena completa de `needs`
+Agregué dos jobs nuevos a `ci.yml`, `integracion` y `e2e`, entre `deploy-qa` y `deploy-prod`. La cadena de dependencias quedó:
+
+```
+build-backend/build-frontend → deploy-qa → integracion → e2e → deploy-prod
+```
+
+- **`integracion` depende de `deploy-qa`**: no tiene sentido pegarle a la api de QA si el deploy a QA todavía no pasó.
+- **`e2e` depende de `integracion`, no de `deploy-qa`**: si la api está rota, no vale la pena levantar un navegador para confirmar algo que ya sé. Es la misma lógica de la pirámide de tests: lo barato primero.
+- **`deploy-prod` depende de `e2e`** (antes dependía de `deploy-qa` directamente): ahora, para que se le pida aprobación a mi reviewer, tienen que haber pasado **las dos** suites nuevas, no solo que QA responda.
+
+El job `integracion` instala dependencias con `npm ci` pero **no** instala el navegador (`npx playwright install`) — esas pruebas no abren ninguno, así que ese paso de más solo agregaría tiempo. El job `e2e` sí lo instala (`--with-deps chromium`). Cada job sube su propio reporte como artefacto, con nombres distintos (`playwright-report-integracion` y `playwright-report-e2e`) — dos artefactos con el mismo nombre en la misma corrida hacen fallar la publicación.
+
+**Qué nada puede desarmar el gate**: no usé `continue-on-error`, ni `|| true` después de los `npx playwright test`, ni ningún `if: always()` o `!cancelled()` en el paso de deploy o en `deploy-prod` — los únicos `!cancelled()` que tengo son en los dos pasos que **publican el reporte**, que tienen que subir el reporte incluso cuando el test de arriba falló (si no, perdería justo la evidencia del fallo).
