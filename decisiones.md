@@ -392,3 +392,32 @@ En `deploy-qa` y `deploy-prod`, el paso que dispara el deploy hook de Render cam
 El merge que cambió `&ref=` por `imgURL` (commit `bcd1dc308ace39025bae358b2ad86c7af4dd1cbc`) corrió de punta a punta: `deploy-qa` disparó el deploy con `imgURL` y el smoke pasó, aprobé `deploy-prod`, y también pasó. Confirmé en **Events** de los **cuatro** servicios (api y front, QA y PROD) que el deploy más reciente dice **"Triggered via Deploy Hook"** y nombra la imagen `sha-bcd1dc3...` de ese commit — no una reconstrucción. Con esto, la Tarea 1 del TP7 queda cerrada: los cuatro entornos ejecutan la imagen que el pipeline publicó, no una reconstrucción del repo.
 
 Corrida: https://github.com/ismael-2306347/ingsoft3-tp01/actions/runs/37780389849
+
+## Arreglos de accesibilidad para que Playwright pueda encontrar los controles
+Playwright busca los elementos como los buscaría una persona (o un lector de pantalla): por su label, por el texto de su botón, por su rol. Mi formulario ya tenía labels bien armados (`<label>Nombre<input/></label>`), pero encontré dos huecos:
+- El botón "Borrar" era **igual en las cuatro tarjetas** — sin nada que lo distinga, un test no puede saber a cuál apretar cuando hay más de un hábito en la lista. Le agregué `aria-label={'Borrar ' + habit.name}` en `HabitCard.jsx`, así cada fila tiene un nombre accesible único.
+- El mensaje de error del formulario (`<p className="error">`) no tenía `role="alert"`, así que no hay forma de pedirlo por rol. Se lo agregué en `HabitFormModal.jsx`.
+
+Los dos cambios son mejoras reales de accesibilidad, no un truco para que el test pase: antes de esto, un lector de pantalla tampoco podía distinguir los botones de borrar entre sí ni enterarse de un error nuevo en la pantalla.
+
+## Las 3 pruebas de integración, contra la api de QA ya desplegada
+Viven en `frontend/e2e/api.spec.js`, usan el fixture `request` de Playwright (manda pedidos HTTP, no abre ningún navegador) y le hablan a mi api por su `API_BASE_URL` — la de QA, no la del front, por la misma razón que el `BACKEND_URL` del TP6 es una variable separada.
+1. **Alta + verificación + borrado**: crea un hábito con un nombre único, confirma que aparece en el listado (que sale de la base, no de un doble), lo borra, y confirma que ya no aparece.
+2. **Alta inválida**: nombre vacío → la api contesta **422** (no 400: es FastAPI, como ya documenté arriba) → y el listado no creció.
+3. **La elegí yo — marcar como hecho hoy actualiza la racha**: crea un hábito, le pega al endpoint de `checkin`, y comprueba que `current_streak` pasa a `1` y `checked_in_today` a `true`. La elegí porque el cálculo de la racha (`streaks.py`) depende de fechas guardadas en Postgres — es exactamente el tipo de lógica que un test con un doble no puede ver (el doble no tiene columnas de fecha reales), y es además el corazón de lo que hace esta app: si se rompe, nadie se entera de que mantuvo su racha.
+
+## Los 3 flujos e2e, contra QA con navegador real
+Viven en `frontend/e2e/tareas.spec.js`, contra `E2E_BASE_URL` (el front de QA).
+1. **Crear y borrar**: abre el formulario, completa "Nombre", guarda, confirma que aparece en la lista, lo borra, confirma que desaparece.
+2. **Validación**: completo el campo con solo espacios (un campo realmente vacío ni dispara mi JS, porque el `required` del HTML frena el submit antes) — así sí llega al validador de la app, que hace `trim()` y rechaza. Confirmo que aparece el mensaje de error (`role="alert"`) y que no se creó ninguna tarjeta nueva.
+3. **La elegí yo — marcar un hábito como hecho hoy**: es el uso diario real de esta app (es un *habit tracker*; si "marcar hoy" no funciona, la app no sirve para nada). Creo un hábito, aprieto "Marcar hoy" **dentro de la tarjeta de ese hábito específico** (con `.filter({ hasText: nombre })`, porque todas las tarjetas repiten los mismos botones) y confirmo que el botón cambia a "Deshacer hoy" y que aparece "🔥 1 día". Limpio borrando el hábito.
+
+## Por qué mi integración es la "amplia" (contra QA) y no la "estrecha" (armada en el pipeline)
+La guía explica que hay dos formas válidas: armar la api en memoria dentro del propio job (con una base descartable que nace y muere con la corrida), o hablarle a la api que ya está desplegada en QA. Elegí la segunda.
+
+**Qué gano**: mucha menos configuración — no necesito levantar un Postgres como `services:` del job ni un server especial para tests, porque ya tengo QA corriendo la imagen exacta que se está por promover. Y de paso, esta suite también prueba que el *despliegue* a QA salió bien (si el deploy falló y QA quedó con la versión vieja, mis pruebas lo notarían).
+
+**Qué pierdo**: mis pruebas de integración dependen de que QA esté levantado y despierto — si Render está teniendo un mal día, mis tests pueden fallar por una razón que no tiene nada que ver con mi código (ya me pasó con el cold start en una corrida de este mismo TP). La versión "estrecha" no tiene ese problema porque corre aislada, pero a cambio necesita mucha más configuración y no prueba nada sobre el deploy en sí.
+
+## Cómo probé las 6 pruebas antes de subirlas
+Levanté mi `docker compose` local (`docker compose up -d --build`, desde `habit-tracker-app/`) y corrí cada suite contra sus puertos: `API_BASE_URL=http://localhost:8000` para la de integración, `E2E_BASE_URL=http://localhost:3000` para la de navegador (con `--trace on` para ver que la traza se grababa incluso en los tests que pasan). Las 6 pasaron. De paso encontré un bug mío: había escrito `import { configDefaults } from "vite"` en `vite.config.js`, cuando en realidad `configDefaults` se exporta desde `vitest/config` — el build del frontend fallaba con `SyntaxError: ... does not provide an export named 'configDefaults'`. Lo arreglé separando el import.

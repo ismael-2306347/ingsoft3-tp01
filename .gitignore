@@ -22,3 +22,5 @@ htmlcov/
 dist/
 backend-coverage/
 frontend-coverage/
+playwright-report/
+test-results/
