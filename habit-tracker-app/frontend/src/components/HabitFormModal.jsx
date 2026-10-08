@@ -38,7 +38,11 @@ export default function HabitFormModal({ habit, onSubmit, onClose }) {
               maxLength={500}
             />
           </label>
-          {error && <p className="error">{error}</p>}
+          {error && (
+            <p className="error" role="alert">
+              {error}
+            </p>
+          )}
           <div className="modal__actions">
             <button type="button" className="btn btn-secondary" onClick={onClose}>
               Cancelar

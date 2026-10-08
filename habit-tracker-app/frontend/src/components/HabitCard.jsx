@@ -26,7 +26,11 @@ export default function HabitCard({ habit, onCheckin, onUncheckin, onDelete, onE
         <button className="btn btn-secondary" onClick={() => onEdit(habit)}>
           Editar
         </button>
-        <button className="btn btn-danger" onClick={() => onDelete(habit.id)}>
+        <button
+          className="btn btn-danger"
+          aria-label={`Borrar ${habit.name}`}
+          onClick={() => onDelete(habit.id)}
+        >
           Borrar
         </button>
       </div>
