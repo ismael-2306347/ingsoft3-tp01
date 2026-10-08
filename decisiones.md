@@ -1,4 +1,9 @@
-## Enlaces de este TP (TP6 — el más reciente)
+## Enlaces del TP7 (el más reciente)
+_(el detalle y la explicación de cada uno están en la sección "Séptimo TP", más abajo. Se completa a medida que avanza el TP)_
+
+---
+
+## Enlaces de este TP (TP6)
 _(el detalle y la explicación de cada uno están en la sección "Sexto TP", más abajo, junto con el resto de las decisiones del práctico)_
 - Paquete backend: https://github.com/ismael-2306347/ingsoft3-tp01/pkgs/container/ingsoft3-tp01-backend
 - Paquete frontend: https://github.com/ismael-2306347/ingsoft3-tp01/pkgs/container/ingsoft3-tp01-frontend
@@ -355,3 +360,14 @@ El job `deploy-prod` de esa corrida quedó marcado como **failure** — no porqu
 Para la aprobación usé un cambio que se nota de verdad en pantalla (no un comentario en el YAML): un subtítulo debajo del título "Rachas" en el Dashboard (`src/pages/DashboardPage.jsx` y `src/styles.css`). Esta vez, en el "Review deployments", elegí **Approve and deploy**. Corrida: https://github.com/ismael-2306347/ingsoft3-tp01/actions/runs/36329849098 (commit `891ebf6`).
 
 **Cómo comprobé que el cambio realmente llegó**: como es una SPA de React, el texto no aparece en el HTML crudo (`curl` no ejecuta JavaScript), así que no alcanzaba con pedir la página. Busqué el nombre del archivo `.js` que sirve `https://rachas-front-prod.onrender.com/`, pedí ese archivo y busqué el texto adentro — apareció. Esto prueba algo más importante que "el texto se ve": prueba que estoy mirando el bundle que **Render construyó de verdad** para ese commit, no la imagen que mi pipeline publicó en `ghcr.io` (que es un build distinto del mismo código — la limitación de la Fase 4 que ya documenté más arriba).
+
+# Séptimo TP
+
+## Enlaces del TP7
+_(se completa a medida que avanza el TP)_
+
+## Punto de partida
+El TP6 dejó mi cadena de CD funcionando pero con una limitación a propósito: Render **reconstruía** mi app desde el repositorio en cada deploy, así que lo que corría en QA/PROD no era bit a bit la imagen que mi pipeline había verificado y publicado en `ghcr.io` — era otra construcción del mismo commit. Este TP cierra ese hueco (los entornos pasan a **ejecutar** la imagen) y agrega dos capas de tests nuevas (integración y e2e) como gate antes de aprobar un deploy a producción.
+
+## Un detalle de mi stack que la guía no tiene en cuenta: 422, no 400
+La guía está escrita para una API en .NET, y sus ejemplos de "dato inválido" esperan que la api conteste `400 Bad Request`. Mi backend es **FastAPI** (Python), y FastAPI/Pydantic devuelven **422 Unprocessable Entity** cuando el cuerpo del pedido no pasa la validación del schema (por ejemplo, `name` vacío, que en mi `schemas.py` tiene `min_length=1`). No es un bug ni algo que tenga que "arreglar" para que de 400: es el código de estado estándar que usa FastAPI para este caso, y mis pruebas de integración y e2e van a verificar **422**, no 400.
