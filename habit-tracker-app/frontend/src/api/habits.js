@@ -18,7 +18,11 @@ export function createHabitsApi(traer = (...args) => fetch(...args)) {
 
   return {
     listHabits: () => request(""),
-    createHabit: (data) => request("", { method: "POST", body: JSON.stringify(data) }),
+    createHabit: (data) =>
+      request("", {
+        method: "POST",
+        body: JSON.stringify({ title: data.name, description: data.description }),
+      }),
     updateHabit: (id, data) =>
       request(`/${id}`, { method: "PUT", body: JSON.stringify(data) }),
     deleteHabit: (id) => request(`/${id}`, { method: "DELETE" }),
