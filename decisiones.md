@@ -5,7 +5,11 @@ _(el detalle y la explicación de cada uno están en la sección "Séptimo TP", 
 - Corrida donde los 4 entornos pasaron a ejecutar la imagen por `imgURL` (Tarea 1): https://github.com/ismael-2306347/ingsoft3-tp01/actions/runs/37780389849
 - URL de QA: https://rachas-front-qa.onrender.com (api: https://rachas-api-qa.onrender.com)
 - URL de PROD: https://rachas-front-prod.onrender.com (api: https://rachas-api-prod.onrender.com)
-- El resto (integración, e2e, el par verde/rojo, la release `v7.0.0`) se completa en las próximas fases.
+- Commit que rompió la app (Tarea 4): `5cdfca6c84866504708ad5e3f9581c1a0e337ede`
+- Corrida con integración **verde** y e2e **roja** frenando la promoción: https://github.com/ismael-2306347/ingsoft3-tp01/actions/runs/38069005975
+- Reporte de integración (verde) de esa corrida: https://github.com/ismael-2306347/ingsoft3-tp01/actions/runs/38069005975/artifacts/11675483809
+- Reporte de e2e (rojo) de esa corrida: https://github.com/ismael-2306347/ingsoft3-tp01/actions/runs/38069005975/artifacts/11676247118
+- La release `v7.0.0` se completa en la próxima fase (después de mergear el arreglo).
 
 ---
 
@@ -436,3 +440,18 @@ build-backend/build-frontend → deploy-qa → integracion → e2e → deploy-pr
 El job `integracion` instala dependencias con `npm ci` pero **no** instala el navegador (`npx playwright install`) — esas pruebas no abren ninguno, así que ese paso de más solo agregaría tiempo. El job `e2e` sí lo instala (`--with-deps chromium`). Cada job sube su propio reporte como artefacto, con nombres distintos (`playwright-report-integracion` y `playwright-report-e2e`) — dos artefactos con el mismo nombre en la misma corrida hacen fallar la publicación.
 
 **Qué nada puede desarmar el gate**: no usé `continue-on-error`, ni `|| true` después de los `npx playwright test`, ni ningún `if: always()` o `!cancelled()` en el paso de deploy o en `deploy-prod` — los únicos `!cancelled()` que tengo son en los dos pasos que **publican el reporte**, que tienen que subir el reporte incluso cuando el test de arriba falló (si no, perdería justo la evidencia del fallo).
+
+**Primera corrida real de la cadena completa, en verde**: el merge que activó estos dos jobs (commit `c06f903...`) corrió de punta a punta la primera vez que lo probé: `integracion` (3/3) y `e2e` (3/3) pasaron contra QA ya desplegado, aprobé `deploy-prod`, y terminó en éxito. Corrida: https://github.com/ismael-2306347/ingsoft3-tp01/actions/runs/38068028124
+
+## La evidencia central: rompí la app, no el test
+Para generar la evidencia que pide la Tarea 4, cambié `createHabit` en `src/api/habits.js` para que mande el campo `title` en vez de `name` en el `POST /api/habits` — el típico bug de "le cambiaron el nombre a un campo en el front y nadie lo notó". Elegí este archivo a propósito porque **ningún test unitario del TP5 revisa el cuerpo de ese pedido** (lo confirmé leyendo `habits.test.js` antes de tocar nada): si hubiera elegido un cambio que sí afectara algún assert existente, ese test lo habría atajado antes de llegar a e2e, y no habría conseguido el par verde/rojo que necesitaba.
+
+**Resultado, confirmado primero en local y después en una corrida real** (commit `5cdfca6c84866504708ad5e3f9581c1a0e337ede`, corrida https://github.com/ismael-2306347/ingsoft3-tp01/actions/runs/38069005975):
+- **`integracion`: 3/3 verde.** Le habla a la api directo con el campo `name` correcto — nunca pasa por el código roto del front, así que no tiene forma de ver el bug.
+- **`e2e`: 2 fallaron, 1 pasó.** Los dos flujos que crean un hábito desde la pantalla ("crear y borrar", "marcar como hecho hoy") fallan, porque los dos dependen de que el alta funcione. El de validación (nombre en blanco) sigue pasando, porque nunca llega a tocar la api: el validador del lado del cliente lo frena antes.
+- **`deploy-prod` quedó `skipped`**: como depende de `e2e` y `e2e` falló, ni siquiera llegó a pedir mi aprobación. No hubo que rechazar nada a mano — el gate se cerró solo.
+- Reportes de esa corrida: [integración (verde)](https://github.com/ismael-2306347/ingsoft3-tp01/actions/runs/38069005975/artifacts/11675483809) · [e2e (rojo)](https://github.com/ismael-2306347/ingsoft3-tp01/actions/runs/38069005975/artifacts/11676247118)
+
+**Cómo lo leí, contra la tabla del marco teórico (integración verde + e2e roja → el problema es el front, no la api ni la base)**: no tuve que mirar el código para saber dónde buscar. Que la integración pasara confirmó que la api y la base estaban sanas — guardan y devuelven bien un hábito creado con el campo correcto. Que la e2e fallara, y específicamente en el paso que clickea "Guardar" después de llenar el formulario, señala que el problema está en cómo el front arma el pedido. Bajé el reporte rojo (`gh run download ... -n playwright-report-e2e`) y la traza confirmó exactamente eso: el navegador mandaba el pedido, pero el hábito nunca aparecía en la lista — la pantalla no estaba usando bien la api.
+
+**El arreglo**: deshice el cambio en `src/api/habits.js` (volver a mandar `name` tal cual). Es exactamente el revert del commit que rompió todo — lo comprobé con `git diff` contra ese commit, que no mostró ninguna diferencia.
