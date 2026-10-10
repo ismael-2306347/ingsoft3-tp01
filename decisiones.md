@@ -1,15 +1,16 @@
 ## Enlaces del TP7 (el más reciente)
-_(el detalle y la explicación de cada uno están en la sección "Séptimo TP", más abajo. Se completa a medida que avanza el TP)_
+_(el detalle y la explicación de cada uno están en la sección "Séptimo TP", más abajo)_
 - Paquete backend: https://github.com/ismael-2306347/ingsoft3-tp01/pkgs/container/ingsoft3-tp01-backend
 - Paquete frontend: https://github.com/ismael-2306347/ingsoft3-tp01/pkgs/container/ingsoft3-tp01-frontend
 - Corrida donde los 4 entornos pasaron a ejecutar la imagen por `imgURL` (Tarea 1): https://github.com/ismael-2306347/ingsoft3-tp01/actions/runs/37780389849
-- URL de QA: https://rachas-front-qa.onrender.com (api: https://rachas-api-qa.onrender.com)
-- URL de PROD: https://rachas-front-prod.onrender.com (api: https://rachas-api-prod.onrender.com)
 - Commit que rompió la app (Tarea 4): `5cdfca6c84866504708ad5e3f9581c1a0e337ede`
 - Corrida con integración **verde** y e2e **roja** frenando la promoción: https://github.com/ismael-2306347/ingsoft3-tp01/actions/runs/38069005975
-- Reporte de integración (verde) de esa corrida: https://github.com/ismael-2306347/ingsoft3-tp01/actions/runs/38069005975/artifacts/11675483809
-- Reporte de e2e (rojo) de esa corrida: https://github.com/ismael-2306347/ingsoft3-tp01/actions/runs/38069005975/artifacts/11676247118
-- La release `v7.0.0` se completa en la próxima fase (después de mergear el arreglo).
+  - Reporte de integración (verde): https://github.com/ismael-2306347/ingsoft3-tp01/actions/runs/38069005975/artifacts/11675483809
+  - Reporte de e2e (rojo): https://github.com/ismael-2306347/ingsoft3-tp01/actions/runs/38069005975/artifacts/11676247118
+- Corrida completa en verde, posterior al arreglo, hasta PROD: https://github.com/ismael-2306347/ingsoft3-tp01/actions/runs/38069593137
+- Release: https://github.com/ismael-2306347/ingsoft3-tp01/releases/tag/v7.0.0
+- URL de QA: https://rachas-front-qa.onrender.com (api: https://rachas-api-qa.onrender.com)
+- URL de PROD: https://rachas-front-prod.onrender.com (api: https://rachas-api-prod.onrender.com)
 
 ---
 
@@ -455,3 +456,32 @@ Para generar la evidencia que pide la Tarea 4, cambié `createHabit` en `src/api
 **Cómo lo leí, contra la tabla del marco teórico (integración verde + e2e roja → el problema es el front, no la api ni la base)**: no tuve que mirar el código para saber dónde buscar. Que la integración pasara confirmó que la api y la base estaban sanas — guardan y devuelven bien un hábito creado con el campo correcto. Que la e2e fallara, y específicamente en el paso que clickea "Guardar" después de llenar el formulario, señala que el problema está en cómo el front arma el pedido. Bajé el reporte rojo (`gh run download ... -n playwright-report-e2e`) y la traza confirmó exactamente eso: el navegador mandaba el pedido, pero el hábito nunca aparecía en la lista — la pantalla no estaba usando bien la api.
 
 **El arreglo**: deshice el cambio en `src/api/habits.js` (volver a mandar `name` tal cual). Es exactamente el revert del commit que rompió todo — lo comprobé con `git diff` contra ese commit, que no mostró ninguna diferencia.
+
+**Corrida completa en verde, posterior al arreglo** (commit `06cacebc68549450add13f5d235898dcdea98349`): `integracion` (3/3) y `e2e` (3/3) pasaron, aprobé `deploy-prod`, y terminó en éxito — PROD recibió la misma imagen que QA acababa de verificar. Corrida: https://github.com/ismael-2306347/ingsoft3-tp01/actions/runs/38069593137
+
+## Mi estrategia de etiquetas
+- **`sha-<commit>` en `ghcr.io`**: la pone mi pipeline en cada push a `main`, siempre la misma convención desde el TP6. Identifica exactamente de qué código salió esa imagen.
+- **`v7.0.0` en git**: la pongo yo a mano, sobre el commit que `Deployments` confirma que está en PROD — es el nombre de "la versión que sé que anduvo", no una etiqueta técnica.
+- **No publico `latest`**: mi pipeline nunca le pone esa etiqueta a ninguna imagen. Si lo hiciera, "la imagen `latest`" sería un blanco móvil — apuntaría a lo último que se haya publicado, sin decir si pasó las pruebas de ese commit en particular o no, y cualquier deploy que la usara correría "lo que sea que haya quedado ahí" en vez de una versión identificable.
+- **Con qué imagen quedaron configurados los 4 servicios de Render, y por qué no es ésa la que corre**: los configuré con el `sha-` del checkpoint inicial (`53a0412...`, el commit del momento en que hice el cambio en Render). Esa configuración es solo el **punto de partida** — Render la usa para saber qué repositorio/imagen tiene asociada, pero la imagen que realmente ejecuta cada servicio la decide cada deploy del pipeline con su propio `imgURL`, así que no hace falta volver a tocar esa configuración con cada merge.
+
+## Qué dejé afuera de cada suite, y por qué (la pirámide)
+- **No repetí en e2e lo que ya cubren mis unit tests del TP5** (como el cálculo exacto de `streakMessage` para cada combinación de racha, o la validación de longitud máxima del nombre) — esas reglas ya están probadas más rápido y más barato un escalón más abajo.
+- **No probé en e2e el caso de "editar un hábito"** ni "ver el detalle con el historial de logs" — son funcionalidad real de la app, pero no son los 3 flujos más críticos: si tuviera que elegir qué cubrir con un recurso caro y lento (un browser real), prioricé crear/borrar, validación, y marcar el día (el uso diario).
+- **En integración no repetí la prueba de alta inválida de más de una forma** (por ejemplo, un nombre de 101 caracteres) — ya tengo un test de "nombre vacío" que prueba que la validación del lado del servidor funciona contra la base de verdad; variantes del mismo tipo de error no agregan información nueva, solo tiempo de corrida.
+- **Ninguna de las dos suites prueba "qué pasa si Neon está caído"** ni errores de infraestructura — eso excede lo que una prueba automatizada puede ejercitar sin apagar servicios a propósito, y no es parte de este TP.
+
+## Cold start en las e2e: timeouts y qué es un test flaky
+Mis e2e corren después de que el smoke test y la integración ya le pegaron a QA, así que normalmente QA ya está despierto cuando le toca el turno al navegador. Aun así, dejé margen generoso en `playwright.config.js`: `timeout: 60_000` (tope por test) y `expect: { timeout: 15_000 }` (tope por aserción, que por defecto es de solo 5 segundos) — suficiente para un `click` o un `fill` que tenga que esperar a que algo lento termine de cargar.
+
+Un **test flaky** es uno que a veces pasa y a veces falla **sin que el código haya cambiado** — típicamente por una demora de red o de arranque, no por un bug real. Mi config tiene `retries: 1`: si un test falla y pasa recién en el reintento, Playwright lo marca como flaky en el reporte (la corrida sigue en verde, pero queda la marca). La diferencia con "ocultar un error" es que si falla **las dos veces**, sigue quedando rojo — el retry no tapa un bug real, solo absorbe una demora puntual. Si algún test me diera flaky en dos corridas seguidas, dejaría de tratarlo como "cosas del free tier" y lo trataría como lo que es: un test mal escrito que depende de un timing que no controla, porque un test que a veces falla es el que termina entrenando a cualquiera a ignorar el rojo.
+
+## Declaración de uso de IA (Séptimo TP)
+Usé Claude como guía activa en todo el TP, igual que en el TP6:
+- Adaptar la guía (escrita sobre .NET/Render) a mi stack: el `API_BASE_URL` apuntando al puerto 8000 (no 8080), los selectores de Playwright ajustados a los textos reales de mi UI ("Nombre", "Guardar", "+ Nuevo hábito", en vez de los de la app de ejemplo), y la confirmación explícita de que mis respuestas de error son 422 y no 400.
+- Detectar que me faltaban dos cosas de accesibilidad (`aria-label` por fila en "Borrar", `role="alert"` en el error) antes de que los tests las necesitaran, leyendo mis propios componentes.
+- Elegir, junto conmigo, la tercera prueba de cada suite (la del check-in/racha) y el campo exacto para romper la app (`title` en vez de `name`), explicando por qué cada elección cumplía lo que pedía la consigna (una prueba que ningún test anterior atajaría, una rotura que sí llegara a producir el par verde/rojo).
+- Escribir los jobs `integracion` y `e2e` del pipeline.
+- Redactar este documento, sección por sección, a medida que cerrábamos cada parte.
+
+**Cómo lo verifiqué**: corrí las 6 pruebas contra mi compose local antes de subir nada; vi con mis propios ojos el error 500/422 y la traza roja del reporte de Playwright antes de aceptar el diagnóstico; aprobé y rechacé cada corrida yo mismo desde GitHub; y confirmé con `docker pull` que las imágenes de la release existen y son públicas.
