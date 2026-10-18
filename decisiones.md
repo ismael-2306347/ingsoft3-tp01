@@ -490,3 +490,16 @@ Usé Claude como guía activa en todo el TP, igual que en el TP6:
 - Redactar este documento, sección por sección, a medida que cerrábamos cada parte.
 
 **Cómo lo verifiqué**: corrí las 6 pruebas contra mi compose local antes de subir nada; vi con mis propios ojos el error 500/422 y la traza roja del reporte de Playwright antes de aceptar el diagnóstico; aprobé y rechacé cada corrida yo mismo desde GitHub; y confirmé con `docker pull` que las imágenes de la release existen y son públicas.
+
+# Octavo TP
+
+## Riel elegido y versiones fijadas
+Terraform (v1.15.8, no venía instalado así que bajé el zip oficial de HashiCorp a mano porque no tengo Chocolatey) contra los mismos dos proveedores que ya uso desde el TP6: **Neon** (`kislerdm/neon`, versión `0.18.0`) para la base de `preprod`, y **Render** (`render-oss/render`, versión `1.9.1`) para sus dos servicios, corriendo la imagen que mi pipeline del TP7 ya publica en `ghcr.io`. Las dos versiones quedaron fijadas en `main.tf` y el `.terraform.lock.hcl` (que sí se commitea) fija además el hash exacto de cada una.
+
+## Problemas que encontré y cómo los resolví
+- **Mi cuenta de Neon pide un `org_id` que la guía no menciona**: el primer `apply` falló con `org_id is required, you can find it on your organization settings page`. Es un campo que mi cuenta de Neon exige ahora (organizaciones) y que la guía, escrita antes, no tenía en cuenta. Lo busqué en la consola de Neon (Organization settings) y lo agregué como atributo de `neon_project`.
+- **Mi backend lee `DATABASE_URL` como una URI de Postgres, no `ConnectionStrings__Default` en pares `Clave=Valor`** (eso es de .NET, lo de la guía): la cadena de conexión que armo en `locals.conn` tiene el formato `postgresql://usuario:password@host/base?sslmode=require`, coherente con cómo ya la leía mi app desde el TP6.
+- **Problemas de verdad, no de la guía**: durante una corrida de rutina de mi pipeline (sin relación con este TP) el deploy hook de Render devolvió `500` tres veces seguidas — coincidió con una ventana de mantenimiento de infraestructura que Render había anunciado para esa misma noche. Esperé a que pasara y reintenté; no era nada de mi configuración.
+
+## Declaración de uso de IA (Octavo TP)
+Usé Claude como guía activa en todo el práctico: para escribir el HCL inicial (adaptado a mis nombres de servicios y mi imagen del TP7), para diagnosticar el error del `org_id` leyendo el mensaje de la API en vez de asumir que era un bug mío, y para traducir cada comando a PowerShell (la guía da los comandos en bash/sh, y tuve que adaptar `curl` a `curl.exe` y la forma de exportar variables de entorno). Cada `plan` y cada `apply` los corrí y confirmé yo mismo, viendo la salida completa antes de escribir `yes`; el ciclo `destroy → apply` lo hice dos veces para asegurarme de que preprod realmente vuelve idéntico. Puedo leer cualquiera de mis planes en voz alta y explicar qué va a crear, qué significa cada `(known after apply)`, y por qué el orden de destrucción salió en el orden en que salió.
