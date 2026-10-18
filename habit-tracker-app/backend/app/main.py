@@ -29,11 +29,4 @@ def health():
     return {"status": "ok"}
 
 
-# Temporal, solo para el TP9: generar un error real para verlo llegar a
-# Sentry. Se saca despues de usarlo (ver decisiones.md).
-@app.get("/api/falla")
-def falla():
-    raise RuntimeError("Falla de prueba del TP9")
-
-
 app.include_router(habits_router)
