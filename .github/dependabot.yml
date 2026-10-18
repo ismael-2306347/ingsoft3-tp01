@@ -1,0 +1,16 @@
+version: 2
+updates:
+  - package-ecosystem: "pip" # las dependencias del backend (FastAPI)
+    directory: "/habit-tracker-app/backend"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "npm" # las del frontend
+    directory: "/habit-tracker-app/frontend"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "github-actions" # tus actions tambien son dependencias
+    directory: "/"
+    schedule:
+      interval: "weekly"
