@@ -503,3 +503,25 @@ Terraform (v1.15.8, no venía instalado así que bajé el zip oficial de HashiCo
 
 ## Declaración de uso de IA (Octavo TP)
 Usé Claude como guía activa en todo el práctico: para escribir el HCL inicial (adaptado a mis nombres de servicios y mi imagen del TP7), para diagnosticar el error del `org_id` leyendo el mensaje de la API en vez de asumir que era un bug mío, y para traducir cada comando a PowerShell (la guía da los comandos en bash/sh, y tuve que adaptar `curl` a `curl.exe` y la forma de exportar variables de entorno). Cada `plan` y cada `apply` los corrí y confirmé yo mismo, viendo la salida completa antes de escribir `yes`; el ciclo `destroy → apply` lo hice dos veces para asegurarme de que preprod realmente vuelve idéntico. Puedo leer cualquiera de mis planes en voz alta y explicar qué va a crear, qué significa cada `(known after apply)`, y por qué el orden de destrucción salió en el orden en que salió.
+
+# Noveno TP
+
+## Dependabot: el PR que mergeé
+Elegí el bump de `psycopg2-binary` (el driver de Postgres), de `2.9.12` a `2.9.13` — un **patch** en SemVer, el tipo de cambio de menor riesgo. El changelog traía dos arreglos reales (parseo de datos binarios y de números malformados en arrays, no features) y sumaba soporte para Python 3.15; dejaron de soportar Python 3.9, pero mi imagen usa 3.11, así que no me afecta. Lo mergeé porque mi CI corrió verde sobre el PR — los 38 tests del backend contra una base de verdad (no un doble), construidos a lo largo de todo el semestre, son la confianza que me permitió mergear en minutos algo que a mano hubiera dudado en tocar.
+
+De paso, GitHub ya reporta **17 vulnerabilidades** en mis dependencias (4 críticas, 3 altas, 10 moderadas) — quedan ahí como alertas abiertas, candidatas a los próximos PRs semanales de Dependabot.
+
+## CodeQL: lo que encontró
+Mi primer análisis encontró **4 hallazgos**, los 4 de la misma categoría: `missing-workflow-permissions` — los jobs `deploy-qa`, `integracion`, `e2e` y `deploy-prod` de mi pipeline corrían con los permisos **por defecto** del repositorio en vez de declarar los suyos (control de acceso / mínimo privilegio, dentro del paraguas de OWASP). Les di a cada uno el mínimo que necesita: `contents: read` a los que hacen `checkout` (`integracion`, `e2e`), y `permissions: {}` (nada) a los que solo llaman `curl` a un webhook (`deploy-qa`, `deploy-prod`) — ninguno de los cuatro tocaba la API de GitHub para nada más.
+
+## El monitor y lo que vi en Sentry
+UptimeRobot detectó la caída que provoqué a mano (suspendí `rachas-api-prod` en Render) y el aviso de **DOWN** me llegó por mail. Al reanudar el servicio, el aviso de **UP** tardó bastante más — Render deja el servicio dormido contestando `503` hasta que alguien lo despierta de verdad, así que abrí el `/health` a mano para acelerarlo.
+
+En Sentry, después de usar la app unos minutos: **`/api/habits` es la operación más pedida** (8 de 12 requests medidos) y también **la más lenta de las reales** (p75 114ms, p90 178ms, contra 167ms del check-in y 39ms del resto). Abrí el issue [#78](https://github.com/ismael-2306347/ingsoft3-tp01/issues/78) en mi tablero con ese dato, para investigar si el p90 alto es la conexión a Neon despertándose o la query que calcula la racha.
+
+## Problemas que encontré
+- **El menú de Sentry cambió de nombre**: la guía dice "Dashboards → Backend Overview", pero en la versión actual de Sentry esa sección se llama **Explore → Traces**, y para ver el desglose por endpoint hay que agrupar manualmente por `span.description` (no viene armado de entrada). Lo fui descubriendo a los tropezones, mirando qué opciones había en el menú real en vez de buscar los nombres exactos de la guía.
+- Igual que en el TP6: `curl` en PowerShell es un alias de `Invoke-WebRequest` y no entiende las opciones de curl real — hubo que usar `curl.exe` explícito en algún comando suelto.
+
+## Declaración de uso de IA (Noveno TP)
+Usé Claude como guía activa: para elegir qué PR de Dependabot mergear y justificar por qué (SemVer, changelog, qué me protegía el CI), para diagnosticar los 4 hallazgos de CodeQL y decidir el permiso mínimo de cada job, para armar el código de Sentry en FastAPI y React adaptado a mi stack (la guía está en .NET), y para guiarme en vivo por la interfaz nueva de Sentry cuando los nombres de menú de la guía ya no existían. Usé la app yo mismo contra producción (listé, creé hábitos, marqué uno) y disparé el error de prueba yo mismo con `curl`; leí el Issue y la tabla de `Explore` con mis propios ojos antes de decidir qué tarjeta abrir en el tablero. Puedo explicar qué detecta cada una de las tres capas de seguridad (secretos, dependencias, código) y qué NO detecta cada una.
