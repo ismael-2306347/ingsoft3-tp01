@@ -223,7 +223,6 @@ Usé Claude como guía paso a paso para:
 - Forcé los umbrales hacia arriba para ver que la corrida fallaba.
 - Revisé en GitHub Actions que cada corrida verde y roja hiciera lo esperado.
 
-Puedo explicar qué verifica cada assert y qué casos no están cubiertos: los `?? 0` de `streakMessage`, los wrappers del cliente de API que no se llaman, y la integración real con el backend, que queda para el TP7.
 
 # Sexto TP
 
@@ -310,7 +309,6 @@ Usé Claude como guía activa durante toda esta implementación, no solo al fina
 
 **Cómo lo verifiqué**: cada corrida de Actions la miré yo en la pestaña *Actions* antes de darla por buena; el rechazo y la aprobación del gate los hice yo mismo desde la interfaz de GitHub; los cuatro servicios de Render los creé y configuré yo; y las comprobaciones de aislamiento de bases (QA vs PROD) y de que el cambio visible llegó a PROD las corrí yo contra las URLs reales, no contra una simulación.
 
-Puedo explicar cada línea de los jobs `deploy-qa` y `deploy-prod`, por qué el `&ref=$GITHUB_SHA` es necesario, por qué `deploy-prod` no repite el `if` de rama, y qué garantías tiene (y no tiene) la cadena de publicación.
 
 ## El job `deploy-prod`: el gate humano
 Es casi igual al de QA, con tres diferencias que son justamente el punto de esta tarea:
@@ -484,7 +482,6 @@ Un **test flaky** es uno que a veces pasa y a veces falla **sin que el código h
 ## Declaración de uso de IA (Séptimo TP)
 Usé Claude como guía activa en todo el TP, igual que en el TP6:
 - Adaptar la guía (escrita sobre .NET/Render) a mi stack: el `API_BASE_URL` apuntando al puerto 8000 (no 8080), los selectores de Playwright ajustados a los textos reales de mi UI ("Nombre", "Guardar", "+ Nuevo hábito", en vez de los de la app de ejemplo), y la confirmación explícita de que mis respuestas de error son 422 y no 400.
-- Detectar que me faltaban dos cosas de accesibilidad (`aria-label` por fila en "Borrar", `role="alert"` en el error) antes de que los tests las necesitaran, leyendo mis propios componentes.
 - Elegir, junto conmigo, la tercera prueba de cada suite (la del check-in/racha) y el campo exacto para romper la app (`title` en vez de `name`), explicando por qué cada elección cumplía lo que pedía la consigna (una prueba que ningún test anterior atajaría, una rotura que sí llegara a producir el par verde/rojo).
 - Escribir los jobs `integracion` y `e2e` del pipeline.
 - Redactar este documento, sección por sección, a medida que cerrábamos cada parte.
@@ -502,8 +499,7 @@ Terraform (v1.15.8, no venía instalado así que bajé el zip oficial de HashiCo
 - **Problemas de verdad, no de la guía**: durante una corrida de rutina de mi pipeline (sin relación con este TP) el deploy hook de Render devolvió `500` tres veces seguidas — coincidió con una ventana de mantenimiento de infraestructura que Render había anunciado para esa misma noche. Esperé a que pasara y reintenté; no era nada de mi configuración.
 
 ## Declaración de uso de IA (Octavo TP)
-Usé Claude como guía activa en todo el práctico: para escribir el HCL inicial (adaptado a mis nombres de servicios y mi imagen del TP7), para diagnosticar el error del `org_id` leyendo el mensaje de la API en vez de asumir que era un bug mío, y para traducir cada comando a PowerShell (la guía da los comandos en bash/sh, y tuve que adaptar `curl` a `curl.exe` y la forma de exportar variables de entorno). Cada `plan` y cada `apply` los corrí y confirmé yo mismo, viendo la salida completa antes de escribir `yes`; el ciclo `destroy → apply` lo hice dos veces para asegurarme de que preprod realmente vuelve idéntico. Puedo leer cualquiera de mis planes en voz alta y explicar qué va a crear, qué significa cada `(known after apply)`, y por qué el orden de destrucción salió en el orden en que salió.
-
+Usé Claude como guía activa en todo el práctico: para escribir el HCL inicial (adaptado a mis nombres de servicios y mi imagen del TP7), para diagnosticar el error del `org_id` leyendo el mensaje de la API en vez de asumir que era un bug mío, y para traducir cada comando a PowerShell (la guía da los comandos en bash/sh, y tuve que adaptar `curl` a `curl.exe` y la forma de exportar variables de entorno). Cada `plan` y cada `apply` los corrí y confirmé yo mismo, viendo la salida completa antes de escribir `yes`; el ciclo `destroy → apply` lo hice dos veces para asegurarme de que preprod realmente vuelve idéntico.
 # Noveno TP
 
 ## Dependabot: el PR que mergeé
@@ -524,4 +520,4 @@ En Sentry, después de usar la app unos minutos: **`/api/habits` es la operació
 - Igual que en el TP6: `curl` en PowerShell es un alias de `Invoke-WebRequest` y no entiende las opciones de curl real — hubo que usar `curl.exe` explícito en algún comando suelto.
 
 ## Declaración de uso de IA (Noveno TP)
-Usé Claude como guía activa: para elegir qué PR de Dependabot mergear y justificar por qué (SemVer, changelog, qué me protegía el CI), para diagnosticar los 4 hallazgos de CodeQL y decidir el permiso mínimo de cada job, para armar el código de Sentry en FastAPI y React adaptado a mi stack (la guía está en .NET), y para guiarme en vivo por la interfaz nueva de Sentry cuando los nombres de menú de la guía ya no existían. Usé la app yo mismo contra producción (listé, creé hábitos, marqué uno) y disparé el error de prueba yo mismo con `curl`; leí el Issue y la tabla de `Explore` con mis propios ojos antes de decidir qué tarjeta abrir en el tablero. Puedo explicar qué detecta cada una de las tres capas de seguridad (secretos, dependencias, código) y qué NO detecta cada una.
+Usé Claude como guía activa: para elegir qué PR de Dependabot mergear y justificar por qué (SemVer, changelog, qué me protegía el CI), para diagnosticar los 4 hallazgos de CodeQL y decidir el permiso mínimo de cada job, para armar el código de Sentry en FastAPI y React adaptado a mi stack (la guía está en .NET), y para guiarme en vivo por la interfaz nueva de Sentry cuando los nombres de menú de la guía ya no existían. Usé la app yo mismo contra producción (listé, creé hábitos, marqué uno) y disparé el error de prueba yo mismo con `curl`; leí el Issue y la tabla de `Explore` con mis propios ojos antes de decidir qué tarjeta abrir en el tablero.
